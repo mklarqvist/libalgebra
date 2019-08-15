@@ -1,3 +1,4 @@
+// License for libalgebra.h
 /*
 * Copyright (c) 2019 Marcus D. R. Klarqvist
 * Author(s): Marcus D. R. Klarqvist
@@ -15,7 +16,7 @@
 * specific language governing permissions and limitations
 * under the License.
 */
-// License for positional popcount
+// License for pospopcnt.h
 /*
 * Copyright (c) 2019
 * Author(s): Marcus D. R. Klarqvist, Wojciech Muła, and Daniel Lemire
@@ -33,7 +34,7 @@
 * specific language governing permissions and limitations
 * under the License.
 */
-// License for libpopcnt
+// License for libpopcnt.h
 /*
  * libpopcnt.h - C/C++ library for counting the number of 1 bits (bit
  * population count) in an array as quickly as possible using
@@ -3210,6 +3211,153 @@ STORM_compute_func STORM_get_diff_count_func(const uint32_t n_bitmaps_vector) {
 #endif
 
     return &STORM_diff_count_scalar;
+}
+
+// real
+// Return the optimal intersection function given the range [0, n_bitmaps_vector)
+// and the available instruction set at run-time.
+static
+uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+
+#if defined(HAVE_CPUID)
+    #if defined(__cplusplus)
+    /* C++11 thread-safe singleton */
+    static const int cpuid = get_cpuid();
+    #else
+    static int cpuid_ = -1;
+    int cpuid = cpuid_;
+    if (cpuid == -1) {
+        cpuid = get_cpuid();
+
+        #if defined(_MSC_VER)
+        _InterlockedCompareExchange(&cpuid_, cpuid, -1);
+        #else
+        __sync_val_compare_and_swap(&cpuid_, -1, cpuid);
+        #endif
+    }
+    #endif
+#endif
+
+
+#if defined(HAVE_AVX512)
+    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+        return STORM_intersect_count_avx512(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_AVX2)
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+        return STORM_intersect_count_avx2(data1, data2, n_len);
+    }
+    
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+        return STORM_intersect_count_lookup_avx2(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_SSE42)
+    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+        return STORM_intersect_count_sse4(data1, data2, n_len);
+    }
+#endif
+
+    return STORM_intersect_count_scalar(data1, data2, n_len);
+}
+
+static
+uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+
+#if defined(HAVE_CPUID)
+    #if defined(__cplusplus)
+    /* C++11 thread-safe singleton */
+    static const int cpuid = get_cpuid();
+    #else
+    static int cpuid_ = -1;
+    int cpuid = cpuid_;
+    if (cpuid == -1) {
+        cpuid = get_cpuid();
+
+        #if defined(_MSC_VER)
+        _InterlockedCompareExchange(&cpuid_, cpuid, -1);
+        #else
+        __sync_val_compare_and_swap(&cpuid_, -1, cpuid);
+        #endif
+    }
+    #endif
+#endif
+
+
+#if defined(HAVE_AVX512)
+    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+        return STORM_union_count_avx512(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_AVX2)
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+        return STORM_union_count_avx2(data1, data2, n_len);
+    }
+    
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+        return STORM_union_count_lookup_avx2(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_SSE42)
+    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+        return STORM_union_count_sse4(data1, data2, n_len);
+    }
+#endif
+
+    return STORM_union_count_scalar(data1, data2, n_len);
+}
+
+static
+uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+
+#if defined(HAVE_CPUID)
+    #if defined(__cplusplus)
+    /* C++11 thread-safe singleton */
+    static const int cpuid = get_cpuid();
+    #else
+    static int cpuid_ = -1;
+    int cpuid = cpuid_;
+    if (cpuid == -1) {
+        cpuid = get_cpuid();
+
+        #if defined(_MSC_VER)
+        _InterlockedCompareExchange(&cpuid_, cpuid, -1);
+        #else
+        __sync_val_compare_and_swap(&cpuid_, -1, cpuid);
+        #endif
+    }
+    #endif
+#endif
+
+
+#if defined(HAVE_AVX512)
+    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+        return STORM_diff_count_avx512(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_AVX2)
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+        return STORM_diff_count_avx2(data1, data2, n_len);
+    }
+    
+    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+        return STORM_diff_count_lookup_avx2(data1, data2, n_len);
+    }
+#endif
+
+#if defined(HAVE_SSE42)
+    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+        return STORM_diff_count_sse4(data1, data2, n_len);
+    }
+#endif
+
+    return STORM_diff_count_scalar(data1, data2, n_len);
 }
 
 /* *************************************
