@@ -5,6 +5,18 @@ matrix:
   fast_finish: true
   
   include:
+    - name: Xenial (g++-4.9)
+      os: linux
+      dist: xenial
+      addons:
+        apt:
+          packages:
+            - g++-4.9
+          sources: &sources
+            - ubuntu-toolchain-r-test
+      env:
+        - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"
+
     - name: Xenial (g++-5)
       os: linux
       dist: xenial
@@ -127,7 +139,6 @@ matrix:
       addons:
         apt:
           sources:
-            - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-6.0
           packages:
             - clang-6.0
@@ -159,7 +170,6 @@ matrix:
         homebrew:
           packages:
           - gcc@5
-          update: true
       env:
         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5
 
@@ -170,7 +180,6 @@ matrix:
         homebrew:
           packages:
           - gcc@6
-          update: true
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6
 
@@ -181,7 +190,6 @@ matrix:
         homebrew:
           packages:
           - gcc@7
-          update: true
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7
 
@@ -192,7 +200,6 @@ matrix:
         homebrew:
           packages:
           - gcc@8
-          update: true
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8
 
