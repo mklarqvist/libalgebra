@@ -73,7 +73,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.7
+            - llvm-toolchain-xenial-3.7
           packages:
             - clang-3.7
       env:
@@ -87,7 +87,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.8
+            - llvm-toolchain-xenial-3.8
           packages:
             - clang-3.8
       env:
@@ -100,7 +100,7 @@ matrix:
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-3.9
+            - llvm-toolchain-xenial-3.9
           packages:
             - clang-3.9
       env:
@@ -113,7 +113,7 @@ matrix:
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-4.0
+            - llvm-toolchain-xenial-4.0
           packages:
             - clang-4.0
       env:
@@ -126,7 +126,8 @@ matrix:
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-5.0
+            - llvm-toolchain-xenial-5.0
+            - ubuntu-toolchain-r-test
           packages:
             - clang-5.0
       env:
@@ -139,7 +140,8 @@ matrix:
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-xenial-6.0
           packages:
             - clang-6.0
             - libstdc++-6-dev
@@ -154,7 +156,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-7
+            - llvm-toolchain-xenial-7
           packages:
             - clang-7
             - libstdc++-7-dev
@@ -203,10 +205,6 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8
 
-before_install:
-  # Overwrite default CC and CXX
-  - eval "${COMPILERS}"
-
 install:
   ############################################################################
   # Install a recent CMake (unless already installed on OS X)
@@ -224,6 +222,8 @@ install:
 
 before_script:
   - cd "${TRAVIS_BUILD_DIR}"
+  # Overwrite default CC and CXX
+  - eval "${COMPILERS}"
 
 script:
   - cmake .
