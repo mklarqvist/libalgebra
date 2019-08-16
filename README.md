@@ -10,15 +10,28 @@ using specialized CPU instructions i.e.
 [SSE4.2](https://en.wikipedia.org/wiki/SSE4#SSE4.2),
 [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions),
 [AVX512BW](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions),
-[NEON](https://en.wikipedia.org/wiki/ARM_architecture#Advanced_SIMD_.28NEON.29).
-```libalgebra.h``` has been tested successfully using the GCC,
+[NEON](https://en.wikipedia.org/wiki/ARM_architecture#Advanced_SIMD_.28NEON.29). ```libalgebra.h``` has been tested successfully using the GCC,
 Clang and MSVC compilers.
+
+The core algorithms are described in the papers:
+
+* [Faster Population Counts using AVX2 Instructions](https://arxiv.org/abs/1611.07612) by Daniel Lemire, Nathan Kurz
+  and Wojciech Muła (23 Nov 2016).
+* Efficient Computation of Positional Population Counts Using SIMD Instructions,
+  by Marcus D. R. Klarqvist, Wojciech Muła, and Daniel Lemire (upcoming)
+* [Consistently faster and smaller compressed bitmaps with Roaring](https://arxiv.org/abs/1603.06549) by D. Lemire, G. Ssi-Yan-Kai,
+  and O. Kaser (21 Mar 2016).
 
 ### Speedup
 
+Sample performance metrics. The host architecture used is a 10 nm Cannon Lake [Core i3-8121U](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html) with gcc (GCC) 8.2.1 20180905 (Red Hat 8.2.1-3).
+
 ### POSPOPCNT
 
-This benchmark shows the speedup of the four `pospopcnt` algorithms used on x86 CPUs compared to a naive unvectorized solution (`pospopcnt_u16_scalar_naive_nosimd`) for different array sizes (in number of 2-byte values). 
+This benchmark shows the speedup of the four `pospopcnt` algorithms used on x86
+CPUs compared to a naive unvectorized solution
+(`pospopcnt_u16_scalar_naive_nosimd`) for different array sizes (in number of
+2-byte values). 
 
 | Algorithm                         | 128  | 256   | 512   | 1024  | 2048  | 4096  | 8192  | 65536  |
 |-----------------------------------|------|-------|-------|-------|-------|-------|-------|--------|
@@ -27,15 +40,20 @@ This benchmark shows the speedup of the four `pospopcnt` algorithms used on x86 
 | pospopcnt_u16_avx512_adder_forest        | 3.05 | 2.82  | 14.53 | **23.13** | **34.37** | 44.91 | 52.78 | 61.68  |
 | pospopcnt_u16_avx512_harvey_seal          | 2.07 | 2.3   | 8.21  | 15.41 | 28.17 | **49.14** | **76.11** | **138.71** |
 
-The host architecture used is a 10 nm Cannon Lake [Core i3-8121U](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html) with gcc (GCC) 7.3.1 20180303 (Red Hat 7.3.1-5).
-
 ### POPCNT
 
 stuff
 
 ### Set algebra
 
-same performance regardless of operator
+Fold speedup compared to naive unvectorized solution
+(`*_scalar_naive_nosimd`)for different array sizes (in number of 64-bit values).
+
+| Algorithm       | 8    | 32    | 128   | 256   | 512   | 1024  | 2048  | 4096  | 8192  |
+|-----------------|------|-------|-------|-------|-------|-------|-------|-------|-------|
+| intersect count | 4.73 | 10.8  | 17.58 | 24.82 | 31    | 35.78 | 37.75 | 23.08 | 20.81 |
+| union count     | 4.64 | 10.96 | 17.19 | 24.88 | 31.09 | 35.74 | 37.95 | 22.92 | 21.11 |
+| diff count      | 4.57 | 10.93 | 17.31 | 24.78 | 30.98 | 35.74 | 37.87 | 23.31 | 21.42 |
 
 ## C/C++ API
 
@@ -55,11 +73,12 @@ uint64_t STORM_popcnt(const void* data, uint64_t size);
 
 /*
  * Count the number of 1 bits for each position in the data array
- * @data: An array
+ * @data: A 16-bit array
  * @size: Size of data in bytes
+ * @flags: Output vector[16]
  */
 uint32_t flags[16];
-int STORM_pospopcnt_u16(const uint16_t* data, uint32_t len, uint32_t* flags);
+int STORM_pospopcnt_u16(const uint16_t* data, uint32_t size, uint32_t* flags);
 ```
 
 ```C
@@ -67,29 +86,18 @@ int STORM_pospopcnt_u16(const uint16_t* data, uint32_t len, uint32_t* flags);
 
 /*
  * Compute the intersection, union, or diff cardinality between pairs of bitmaps
- * @data: An array
+ * @data1: A 64-bit array
+ * @data2: A 64-bit array
  * @size: Size of data in bytes
  */
 // Intersect cardinality
-uint64_t STORM_intersect_count(const uint64_t* data1, const uint64_t* data2, const uint32_t n_len);
+uint64_t STORM_intersect_count(const uint64_t* data1, const uint64_t* data2, const uint32_t size);
 // Union cardinality
-uint64_t STORM_union_count(const uint64_t* data1, const uint64_t* data2, const uint32_t n_len);
+uint64_t STORM_union_count(const uint64_t* data1, const uint64_t* data2, const uint32_t size);
 // Diff cardinality
-uint64_t STORM_diff_count(const uint64_t* data1, const uint64_t* data2, const uint32_t n_len);
+uint64_t STORM_diff_count(const uint64_t* data1, const uint64_t* data2, const uint32_t size);
 ```
 
 ## How it works
 
-On x86 CPUs ```libalgebra.h``` uses a combination of 4 different bit
-population count algorithms:
-
-* For array sizes < 512 bytes an unrolled ```POPCNT``` algorithm
-is used.
-* For array sizes ≥ 512 bytes an ```AVX2``` algorithm is used.
-* For array sizes ≥ 1024 bytes an ```AVX512``` algorithm is used.
-* For CPUs without ```POPCNT``` instruction a portable 
-integer algorithm is used.
-
-Note that ```libalgebra.h``` works on all CPUs, it checks at run-time
-whether your CPU supports POPCNT, AVX2, AVX512 before using it
-and it is also thread-safe.
+On x86 CPUs ```libalgebra.h``` uses a combination of algorithms depending on the input vector size and what instruction set your CPU supports. These checks are performed during **run-time**.
