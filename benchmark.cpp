@@ -44,14 +44,15 @@ void generate_random_data(uint64_t* data, uint32_t range, uint32_t n) {
 // Definition for microsecond timer.
 typedef std::chrono::high_resolution_clock::time_point clockdef;
 
-int pospopcnt_u16_wrapper(STORM_compute_func f, 
-                          int iterations,
-                          uint64_t* STORM_RESTRICT data1, 
-                          uint64_t* STORM_RESTRICT data2, 
-                          uint32_t range,
-                          uint32_t n_values,
-                          uint32_t n_bitmaps, 
-                          bench_unit& unit) 
+int set_algebra_wrapper(std::string name,
+    STORM_compute_func f, 
+    int iterations,
+    uint64_t* STORM_RESTRICT data1, 
+    uint64_t* STORM_RESTRICT data2, 
+    uint32_t range,
+    uint32_t n_values,
+    uint32_t n_bitmaps, 
+    bench_unit& unit) 
 {
     uint32_t cycles_low = 0, cycles_high = 0;
     uint32_t cycles_low1 = 0, cycles_high1 = 0;
@@ -147,7 +148,7 @@ asm   volatile("RDTSCP\n\t"
     variance /= clocks.size();
     stdDeviation = sqrt(variance);
 
-    std::cout << "test" << "\t" << n_bitmaps << "\t" << 
+    std::cout << name << "\t" << n_bitmaps << "\t" << 
         mean_cycles << "\t" <<
         min_c << "(" << min_c/mean_cycles << ")" << "\t" << 
         max_c << "(" << max_c/mean_cycles << ")" << "\t" <<
@@ -212,8 +213,25 @@ int benchmark(uint32_t range, uint32_t n_values) {
     uint64_t diff_count = STORM_diff_count(bitmaps, bitmaps2, n_bitmaps);
     std::cout << "diff count=" << diff_count << std::endl;
 
-    bench_unit unit;
-    pospopcnt_u16_wrapper(STORM_get_intersect_count_func(n_bitmaps), 1000, bitmaps, bitmaps2, range, n_values, n_bitmaps, unit);
+    {
+        // Align some bitmaps.
+        uint32_t n_bitmaps = ceil(range / 64.0);
+        uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 65536*sizeof(uint64_t));
+        uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 65536*sizeof(uint64_t));
+
+        std::vector<uint32_t> ranges = {128,256,512,1024,2048,4096,8192,65536};
+
+        for (int i = 0; i < ranges.size(); ++i) {
+            bench_unit unit_intsec, unit_union, unit_diff;
+            set_algebra_wrapper("intersect",STORM_get_intersect_count_func(n_bitmaps), 1000, bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
+            set_algebra_wrapper("union",STORM_get_union_count_func(n_bitmaps), 1000, bitmaps, bitmaps2, range, n_values, ranges[i], unit_union);
+            set_algebra_wrapper("diff",STORM_get_diff_count_func(n_bitmaps), 1000, bitmaps, bitmaps2, range, n_values, ranges[i], unit_diff);
+        }
+
+        // Clean up.
+        STORM_aligned_free(bitmaps);
+        STORM_aligned_free(bitmaps2);
+    }
 
     // Clean up.
     STORM_aligned_free(bitmaps);
