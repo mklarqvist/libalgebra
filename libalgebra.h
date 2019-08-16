@@ -112,6 +112,10 @@
 *  since there is no hard dependency on using Roaring bitmaps.
 ****************************/
 // portable version of  posix_memalign
+#ifndef _MSC_VER
+#include <x86intrin.h>
+#endif
+
 #ifndef STORM_aligned_malloc
 static 
 void* STORM_aligned_malloc(size_t alignment, size_t size) {

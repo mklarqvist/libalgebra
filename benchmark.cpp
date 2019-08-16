@@ -3,6 +3,8 @@
 #include <iostream>
 #include <random>
 #include <chrono>
+#include <string>
+#include <vector>
 
 uint8_t popcnt_lookup8bit[256] = {
 	/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
