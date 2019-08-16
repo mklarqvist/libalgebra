@@ -24,7 +24,7 @@ The core algorithms are described in the papers:
 
 ### Speedup
 
-Sample performance metrics (practical upper limit) on AVX512BW machine. We simulate a single data array or pairs of data arrays and iterate 
+Sample performance metrics (practical upper limit) on AVX512BW machine. We simulate a single data array or pairs of data arrays and compute the same statistics many times. This reflect the fastest possible throughput if you never have to leave the destination cache-level.
 The host architecture used is a 10 nm Cannon Lake [Core i3-8121U](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html) with gcc (GCC) 8.2.1 20180905 (Red Hat 8.2.1-3).
 
 ### POSPOPCNT
@@ -56,13 +56,13 @@ Fold speedup compared to naive unvectorized solution
 | union count     | 4.64 | 10.96 | 17.19 | 24.88 | 31.09 | 35.74 | 37.95 | 22.92 | 21.11 |
 | diff count      | 4.57 | 10.93 | 17.31 | 24.78 | 30.98 | 35.74 | 37.87 | 23.31 | 21.42 |
 
-Same table showing throughput as MB/s and CPU cycles / 8-byte word:
+Same table showing throughput as MB/s and CPU cycles / 8-byte word. Fastest observed speed is ~185 GB/s (~0.18 CPU cycles / 8-byte word).
 
 | Algorithm       | 8              | 32             | 128            | 256           | 512           | 1024          | 2048          | 4096         | 8192          |
 |-----------------|----------------|----------------|----------------|---------------|---------------|---------------|---------------|--------------|---------------|
-| intersect count | 24414.1 (1.61) | 48828.1 (0.71) | 84918.5 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 183824 (0.18) | 112007 (0.3) | 100644 (0.33) |
-| union count     | 24414.1 (1.57) | 48828.1 (0.72) | 84918.5 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 184911 (0.18) | 111210 (0.3) | 102124 (0.33) |
-| diff count      | 24414.1 (1.57) | 48828.1 (0.72) | 84918.5 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 183824 (0.18) | 113020 (0.3) | 103648 (0.32) |
+| intersect count | 24414 (1.61) | 48828 (0.71) | 84918 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 183824 (0.18) | 112007 (0.3) | 100644 (0.33) |
+| union count     | 24414 (1.57) | 48828 (0.72) | 84918 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 184911 (0.18) | 111210 (0.3) | 102124 (0.33) |
+| diff count      | 24414 (1.57) | 48828 (0.72) | 84918 (0.41) | 122070 (0.28) | 150240 (0.22) | 173611 (0.19) | 183824 (0.18) | 113020 (0.3) | 103648 (0.32) |
 
 ## C/C++ API
 
