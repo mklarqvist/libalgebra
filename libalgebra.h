@@ -2204,7 +2204,7 @@ uint64_t STORM_diff_count_avx2(const uint64_t* STORM_RESTRICT b1,
 #if !defined(_MSC_VER)
   __attribute__ ((target ("avx2")))
 #endif
-STORM_FORCE_INLINE 
+static 
 uint64_t STORM_intersect_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                            const uint64_t* STORM_RESTRICT b2, 
                                            const uint32_t n_ints)
@@ -2215,7 +2215,7 @@ uint64_t STORM_intersect_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1,
 #if !defined(_MSC_VER)
   __attribute__ ((target ("avx2")))
 #endif
-STORM_FORCE_INLINE 
+static 
 uint64_t STORM_union_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                        const uint64_t* STORM_RESTRICT b2, 
                                        const uint32_t n_ints)
@@ -2226,7 +2226,7 @@ uint64_t STORM_union_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1,
 #if !defined(_MSC_VER)
   __attribute__ ((target ("avx2")))
 #endif
-STORM_FORCE_INLINE 
+static 
 uint64_t STORM_diff_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                       const uint64_t* STORM_RESTRICT b2, 
                                       const uint32_t n_ints)
@@ -3364,7 +3364,7 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* 
 *  POPCNT and POSPOPCNT functions.
 ***************************************/
 static
-uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
+uint64_t STORM_popcnt(const uint8_t* data, uint32_t size) {
     uint64_t cnt = 0;
     uint64_t i;
 
@@ -3393,7 +3393,7 @@ uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
     if ((cpuid & STORM_bit_AVX512BW) &&
         size >= 1024)
     {
-        cnt += STORM_popcnt_avx512((const __m512i*) data, size / 64);
+        cnt += STORM_popcnt_avx512((const __m512i*)data, size / 64);
         data += size - size % 64;
         size = size % 64;
     }
@@ -3406,7 +3406,7 @@ uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
     if ((cpuid & STORM_bit_AVX2) &&
         size >= 512)
     {
-        cnt += STORM_popcnt_avx2((const __m256i*) data, size / 32);
+        cnt += STORM_popcnt_avx2((const __m256i*)data, size / 32);
         data += size - size % 32;
         size = size % 32;
     }
@@ -3416,7 +3416,7 @@ uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
 #if defined(HAVE_POPCNT)
 
     if (cpuid & STORM_bit_POPCNT) {
-        cnt += STORM_popcount64_unrolled((const uint64_t*) data, size / 8);
+        cnt += STORM_popcount64_unrolled((const uint64_t*)data, size / 8);
         data += size - size % 8;
         size = size % 8;
         for (i = 0; i < size; i++)
@@ -3429,7 +3429,7 @@ uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
 
     /* pure integer popcount algorithm */
     if (size >= 8) {
-        cnt += STORM_popcount64_unrolled((const uint64_t*) data, size / 8);
+        cnt += STORM_popcount64_unrolled((const uint64_t*)data, size / 8);
         data += size - size % 8;
         size = size % 8;
     }
@@ -3443,6 +3443,7 @@ uint64_t STORM_popcnt(const uint64_t* data, uint64_t size) {
 
 static
 int STORM_pospopcnt_u16(const uint16_t* data, uint32_t len, uint32_t* flags) {
+    memset(flags, 0, sizeof(uint32_t)*16);
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
