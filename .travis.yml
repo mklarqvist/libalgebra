@@ -59,6 +59,7 @@ matrix:
 
     - name: Xenial (clang++-3.7)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -73,6 +74,7 @@ matrix:
 
     - name: Xenial (clang++-3.8)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -87,6 +89,7 @@ matrix:
 
     - name: Xenial (clang++-3.9)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -100,6 +103,7 @@ matrix:
 
     - name: Xenial (clang++-4.0)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -113,6 +117,7 @@ matrix:
 
     - name: Xenial (clang++-5.0)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -126,6 +131,7 @@ matrix:
 
     - name: Xenial (clang++-6.0)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -141,6 +147,7 @@ matrix:
 
     - name: Xenial (clang++-7.0)
       os: linux
+      dist: xenial
       addons:
         apt:
           sources:
@@ -162,6 +169,7 @@ matrix:
         homebrew:
           packages:
           - gcc@5
+          - cmake
           update: true
       env:
         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5
