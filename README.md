@@ -18,7 +18,7 @@ Clang and MSVC compilers.
 
 ### POSPOPCNT
 
-This benchmark shows the speedup of the 3four `pospopcnt` algorithms used on x86 CPUs compared to a naive unvectorized solution (`pospopcnt_u16_scalar_naive_nosimd`) for different array sizes (in number of 2-byte values). 
+This benchmark shows the speedup of the four `pospopcnt` algorithms used on x86 CPUs compared to a naive unvectorized solution (`pospopcnt_u16_scalar_naive_nosimd`) for different array sizes (in number of 2-byte values). 
 
 | Algorithm                         | 128  | 256   | 512   | 1024  | 2048  | 4096  | 8192  | 65536  |
 |-----------------------------------|------|-------|-------|-------|-------|-------|-------|--------|
