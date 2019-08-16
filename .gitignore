@@ -50,3 +50,13 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Executable
+benchmark
+# VSCode
+settings.json
+# CMake
+CMakeFiles
+CMake*
+cmake_*
+Makefile
