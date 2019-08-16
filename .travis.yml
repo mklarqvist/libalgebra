@@ -165,49 +165,8 @@ matrix:
       compiler: clang
 
     # OSX begin
-    - name: Xcode10 (gcc++-5)
-      os: osx
-      osx_image: xcode10
-      addons:
-        homebrew:
-          packages:
-          - gcc@5
-          update: true
-      env:
-        - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5
-
-    - name: Xcode10 (gcc++-6)
-      os: osx
-      osx_image: xcode10
-      addons:
-        homebrew:
-          packages:
-          - gcc@6
-          update: true
-      env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6
-
-    - name: Xcode10 (gcc++-7)
-      os: osx
-      osx_image: xcode10
-      addons:
-        homebrew:
-          packages:
-          - gcc@7
-          update: true
-      env:
-        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7
-
-    - name: Xcode10 (gcc++-8)
-      os: osx
-      osx_image: xcode10
-      addons:
-        homebrew:
-          packages:
-          - gcc@8
-          update: true
-      env:
-        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8
+    - os: osx
+      compiler: clang
 
 install:
   ############################################################################
