@@ -172,6 +172,7 @@ matrix:
         homebrew:
           packages:
           - gcc@5
+          update: true
       env:
         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5
 
@@ -182,6 +183,7 @@ matrix:
         homebrew:
           packages:
           - gcc@6
+          update: true
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6
 
@@ -192,6 +194,7 @@ matrix:
         homebrew:
           packages:
           - gcc@7
+          update: true
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7
 
@@ -202,6 +205,7 @@ matrix:
         homebrew:
           packages:
           - gcc@8
+          update: true
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8
 
