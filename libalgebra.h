@@ -2456,6 +2456,8 @@ int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, uint32_t len
             flags[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
+
+    return 0;
 }
 
 #if !defined(_MSC_VER)
