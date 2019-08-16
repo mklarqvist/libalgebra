@@ -216,10 +216,10 @@ int benchmark(uint32_t range, uint32_t n_values) {
     {
         // Align some bitmaps.
         uint32_t n_bitmaps = ceil(range / 64.0);
-        uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 65536*sizeof(uint64_t));
-        uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 65536*sizeof(uint64_t));
+        uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 262144*sizeof(uint64_t));
+        uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 262144*sizeof(uint64_t));
 
-        std::vector<uint32_t> ranges = {128,256,512,1024,2048,4096,8192,65536};
+        std::vector<uint32_t> ranges = {128,256,512,1024,2048,4096,8192,65536,262144};
 
         for (int i = 0; i < ranges.size(); ++i) {
             bench_unit unit_intsec, unit_union, unit_diff;
