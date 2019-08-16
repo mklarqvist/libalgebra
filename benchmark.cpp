@@ -252,7 +252,7 @@ int linux_popcount_wrapper(std::string name,
     if (verbose) {
         printf("instructions per cycle %4.2f, cycles per 64-bit word:  %4.3f, "
                "instructions per 64-bit word %4.3f \n",
-                double(mins[1]) / mins[0], double(mins[0]) / (2*n_bitmaps), double(mins[1]) / (2*n_bitmaps));
+                double(mins[1]) / mins[0], double(mins[0]) / n_bitmaps, double(mins[1]) / n_bitmaps);
         // first we display mins
         printf("min: %8llu cycles, %8llu instructions, \t%8llu branch mis., %8llu "
                "cache ref., %8llu cache mis.\n",
@@ -261,7 +261,7 @@ int linux_popcount_wrapper(std::string name,
                "cache ref., %8.1f cache mis.\n",
                 avg[0], avg[1], avg[2], avg[3], avg[4]);
     } else {
-        printf("cycles per 64-bit word:  %4.3f; ref cycles per 64-bit word: %4.3f \n", double(mins[0]) / (2*n_bitmaps), double(mins[5]) / (2*n_bitmaps));
+        printf("cycles per 64-bit word:  %4.3f; ref cycles per 64-bit word: %4.3f \n", double(mins[0]) / n_bitmaps, double(mins[5]) / n_bitmaps);
     }
 
     return 1;
@@ -364,10 +364,9 @@ uint64_t popcount_scalar_naive_nosimd(const uint8_t* data, uint32_t len) {
     // for (int i = 0; i < len; ++i) {
     //     total += STORM_popcount64(data1[i] & data2[i]);
     // }
+    // assert(len % 8 == 0);
 
-    // uint64_t diff;
-    // uint8_t* b8 = (uint8_t*)&data;
-    for (int i = 0, j = 0; i < len; ++i, j += 8) {
+    for (int j = 0; j < len; j += 8) {
         // total += STORM_popcount64(data[i]);
         // diff = data1[i] & data2[i];
         total += popcnt_lookup8bit[data[j+0]];
