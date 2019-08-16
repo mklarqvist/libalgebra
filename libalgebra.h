@@ -2993,12 +2993,12 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
     if(n1 < n2) {
         for (int i = 0; i < n1; ++i) {
             count += ((b2[l1[i] >> 6] & (1L << MOD(l1[i]))) != 0); 
-            __builtin_prefetch(&b2[l1[i] >> 6], 0, _MM_HINT_T0);
+            // __builtin_prefetch(&b2[l1[i] >> 6], 0, _MM_HINT_T0);
         }
     } else {
         for (int i = 0; i < n2; ++i) {
             count += ((b1[l2[i] >> 6] & (1L << MOD(l2[i]))) != 0);
-            __builtin_prefetch(&b1[l2[i] >> 6], 0, _MM_HINT_T0);
+            // __builtin_prefetch(&b1[l2[i] >> 6], 0, _MM_HINT_T0);
         }
     }
 #undef MOD
