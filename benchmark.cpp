@@ -111,6 +111,33 @@ void generate_random_data(uint64_t* data, uint32_t range, uint32_t n) {
 #if !defined(__clang__) && !defined(_MSC_VER)
 __attribute__((optimize("no-tree-vectorize")))
 #endif
+uint64_t popcount_scalar_naive_nosimd(const uint8_t* data, uint32_t len) {
+    uint64_t total = 0;
+    // for (int i = 0; i < len; ++i) {
+    //     total += STORM_popcount64(data1[i] & data2[i]);
+    // }
+
+    // uint64_t diff;
+    // uint8_t* b8 = (uint8_t*)&data;
+    for (int i = 0, j = 0; i < len; ++i, j += 8) {
+        // total += STORM_popcount64(data[i]);
+        // diff = data1[i] & data2[i];
+        total += popcnt_lookup8bit[data[j+0]];
+        total += popcnt_lookup8bit[data[j+1]];
+        total += popcnt_lookup8bit[data[j+2]];
+        total += popcnt_lookup8bit[data[j+3]];
+        total += popcnt_lookup8bit[data[j+4]];
+        total += popcnt_lookup8bit[data[j+5]];
+        total += popcnt_lookup8bit[data[j+6]];
+        total += popcnt_lookup8bit[data[j+7]];
+    }
+
+    return total;
+}
+
+#if !defined(__clang__) && !defined(_MSC_VER)
+__attribute__((optimize("no-tree-vectorize")))
+#endif
 uint64_t intersect_scalar_naive_nosimd(const uint64_t* STORM_RESTRICT data1,const uint64_t* STORM_RESTRICT data2, uint32_t len) {
     uint64_t total = 0;
     // for (int i = 0; i < len; ++i) {
@@ -268,58 +295,119 @@ asm   volatile("RDTSCP\n\t"
     clockdef t2 = std::chrono::high_resolution_clock::now();
     auto time_span = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
 
-    // assert_truth(counters, flags_truth);
-    // std::cerr << cycles_low <<"-" << cycles_high << " and " << cycles_low1 << "-" << cycles_high1 << std::endl;
-    // std::cerr << "diff=" << (cycles_low1-cycles_low) << "->" << (cycles_low1-cycles_low)/(double)n << std::endl;
     uint64_t start = ( ((uint64_t)cycles_high  << 32) | cycles_low  );
     uint64_t end   = ( ((uint64_t)cycles_high1 << 32) | cycles_low1 );
 
-    // clocks.push_back(end - start);
-    // times.push_back(time_span.count());
-
-    // uint64_t tot_cycles = 0, tot_time = 0;
-    // uint64_t min_c = std::numeric_limits<uint64_t>::max(), max_c = 0;
-    // for (int i = 0; i < clocks.size(); ++i) {
-    //     tot_cycles += clocks[i];
-    //     tot_time += times[i];
-    //     min_c = std::min(min_c, clocks[i]);
-    //     max_c = std::max(max_c, clocks[i]);
-    // }
     double mean_cycles = (end - start) / (double)iterations;
     uint32_t mean_time = time_span.count() / (double)iterations;
 
-    // double variance = 0, stdDeviation = 0, mad = 0;
-    // for(int i = 0; i < clocks.size(); ++i) {
-    //     variance += pow(clocks[i] - mean_cycles, 2);
-    //     mad += std::abs(clocks[i] - mean_cycles);
-    // }
-    // mad /= clocks.size();
-    // variance /= clocks.size();
-    // stdDeviation = sqrt(variance);
-
     std::cout << name << "\t" << n_bitmaps << "\t" << total << "\t" << 
         mean_cycles << "\t" <<
-        // min_c << "(" << min_c/mean_cycles << ")" << "\t" << 
-        // max_c << "(" << max_c/mean_cycles << ")" << "\t" <<
-        // stdDeviation << "\t" << 
-        // mad << "\t" << 
         mean_time << "\t" << 
         mean_cycles / n_bitmaps << "\t" << 
         ((n_bitmaps*2*sizeof(uint64_t)) / (1024*1024.0)) / (mean_time / 1000000000.0) << std::endl;
-
-    // End timer and update times.
-    //uint64_t cpu_cycles_after = get_cpu_cycles();
     
     unit.times += mean_time;
     unit.times_local = mean_time;
-    //unit.cycles += (cpu_cycles_after - cpu_cycles_before);
-    //unit.cycles_local = (cpu_cycles_after - cpu_cycles_before);
     unit.cycles += mean_cycles;
     unit.cycles_local = mean_cycles;
     unit.valid = 1;
 
-    //std::cerr << cycles_low <<"-" << cycles_high << " and " << cycles_low1 << "-" << cycles_high1 << std::endl;
-    //std::cerr << "diff=" << (cycles_low1-cycles_low) << "->" << (cycles_low1-cycles_low)/(double)n << std::endl;
+    return 0;
+}
+
+int popcount_wrapper(std::string name,
+    STORM_popcnt_func f, 
+    int iterations,
+    uint64_t* data,
+    uint32_t range,
+    uint32_t n_values,
+    uint32_t n_bitmaps, 
+    bench_unit& unit) 
+{
+    uint32_t cycles_low = 0, cycles_high = 0;
+    uint32_t cycles_low1 = 0, cycles_high1 = 0;
+    // Start timer.
+
+    std::vector<uint64_t> clocks;
+    std::vector<uint32_t> times;
+
+#ifndef _MSC_VER
+// Intel guide:
+// @see: https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-32-ia-64-benchmark-code-execution-paper.pdf
+asm   volatile ("CPUID\n\t"
+                "RDTSC\n\t"
+                "mov %%edx, %0\n\t"
+                "mov %%eax, %1\n\t": "=r" (cycles_high), "=r" (cycles_low):: "%rax", "%rbx", "%rcx", "%rdx"); 
+asm   volatile("RDTSCP\n\t"
+               "mov %%edx, %0\n\t"
+               "mov %%eax, %1\n\t"
+               "CPUID\n\t": "=r" (cycles_high1), "=r" (cycles_low1):: "%rax", "%rbx", "%rcx", "%rdx"); 
+asm   volatile ("CPUID\n\t"
+                "RDTSC\n\t"
+                "mov %%edx, %0\n\t"
+                "mov %%eax, %1\n\t": "=r" (cycles_high), "=r" (cycles_low):: "%rax", "%rbx", "%rcx", "%rdx"); 
+asm   volatile("RDTSCP\n\t"
+               "mov %%edx, %0\n\t"
+               "mov %%eax, %1\n\t"
+               "CPUID\n\t": "=r" (cycles_high1), "=r" (cycles_low1):: "%rax", "%rbx", "%rcx", "%rdx");
+#endif
+    generate_random_data(data, range, n_values);
+
+    volatile uint64_t total = 0; // voltatile to prevent compiler to remove work through optimization
+    clockdef t1 = std::chrono::high_resolution_clock::now();
+
+#ifdef __linux__ 
+    // unsigned long flags;
+    // preempt_disable(); /*we disable preemption on our CPU*/
+    // raw_local_irq_save(flags); /*we disable hard interrupts on our CPU*/  
+    /*at this stage we exclusively own the CPU*/ 
+#endif
+
+#ifndef _MSC_VER 
+    asm   volatile ("CPUID\n\t"
+                    "RDTSC\n\t"
+                    "mov %%edx, %0\n\t"
+                    "mov %%eax, %1\n\t": "=r" (cycles_high), "=r" (cycles_low):: "%rax", "%rbx", "%rcx", "%rdx");
+#endif
+
+    for (int i = 0; i < iterations; ++i) {
+        // Call argument subroutine pointer.
+        total += (*f)((uint8_t*)data, n_bitmaps);
+    }
+
+#ifndef _MSC_VER 
+    asm   volatile("RDTSCP\n\t"
+                   "mov %%edx, %0\n\t"
+                   "mov %%eax, %1\n\t"
+                   "CPUID\n\t": "=r" (cycles_high1), "=r" (cycles_low1):: "%rax", "%rbx", "%rcx", "%rdx");
+#endif
+#ifdef __linux__ 
+        // raw_local_irq_restore(flags);/*we enable hard interrupts on our CPU*/
+        // preempt_enable();/*we enable preemption*/
+#endif
+
+    clockdef t2 = std::chrono::high_resolution_clock::now();
+    auto time_span = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+
+    uint64_t start = ( ((uint64_t)cycles_high  << 32) | cycles_low  );
+    uint64_t end   = ( ((uint64_t)cycles_high1 << 32) | cycles_low1 );
+
+    double mean_cycles = (end - start) / (double)iterations;
+    uint32_t mean_time = time_span.count() / (double)iterations;
+
+    std::cout << name << "\t" << n_bitmaps << "\t" << total << "\t" << 
+        mean_cycles << "\t" <<
+        mean_time << "\t" << 
+        mean_cycles / n_bitmaps << "\t" << 
+        ((n_bitmaps*2*sizeof(uint64_t)) / (1024*1024.0)) / (mean_time / 1000000000.0) << std::endl;
+    
+    unit.times += mean_time;
+    unit.times_local = mean_time;
+    unit.cycles += mean_cycles;
+    unit.cycles_local = mean_cycles;
+    unit.valid = 1;
+
     return 0;
 }
 
@@ -374,6 +462,9 @@ int benchmark(uint32_t range, uint32_t n_values) {
 
         for (int i = 0; i < ranges.size(); ++i) {
             bench_unit unit_intsec, unit_union, unit_diff;
+            popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, iterations[i], bitmaps, range, n_values, ranges[i], unit_intsec);
+            popcount_wrapper("popcount",&STORM_popcnt, iterations[i], bitmaps, range, n_values, ranges[i], unit_intsec);
+            
             set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
             set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
             set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);

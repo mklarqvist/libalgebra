@@ -3015,6 +3015,7 @@ typedef uint64_t (*STORM_compute_func)(const uint64_t*, const uint64_t*, const u
 typedef uint64_t (*STORM_compute_lfunc)(const uint64_t*, const uint64_t*, 
     const uint32_t*, const uint32_t*, const uint32_t, const uint32_t);
 typedef int (STORM_pposcnt_func)(const uint16_t*, uint32_t, uint32_t*);
+typedef uint64_t (STORM_popcnt_func)(const uint8_t*, uint32_t);
 
 /* *************************************
 *  Alignment 

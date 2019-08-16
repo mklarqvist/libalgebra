@@ -47,8 +47,10 @@ stuff
 
 ### Set algebra
 
-Fold speedup compared to naive unvectorized solution
-(`*_scalar_naive_nosimd`) for different array sizes (in number of _pairs_ of 64-bit values).
+Fold speedup compared to naive unvectorized solution (`*_scalar_naive_nosimd`)
+for different array sizes (in number of _pairs_ of 64-bit values). These
+functions are identifical with the exception of the bitwise operator used (AND,
+OR, or XOR) which all have identical latency and throughput (CPI).
 
 | Algorithm       | 8    | 32    | 128   | 256   | 512   | 1024  | 2048  | 4096  | 8192  |
 |-----------------|------|-------|-------|-------|-------|-------|-------|-------|-------|
