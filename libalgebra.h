@@ -103,8 +103,6 @@
 #  define STORM_RESTRICT   /* disable */
 #endif
 
-#include <x86intrin.h>
-
 /****************************
 *  Memory management
 * 
