@@ -57,6 +57,6 @@ benchmark
 settings.json
 # CMake
 CMakeFiles
-CMake*
 cmake_*
 Makefile
+CMakeCache.txt
