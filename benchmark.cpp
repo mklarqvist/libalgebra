@@ -694,7 +694,7 @@ int benchmark(int n_repetitions, bool use_perf = false) {
             linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
             linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
 #else
-            std::cerr << "perf counter are only available on Linux systems!"
+            std::cerr << "perf counter are only available on Linux systems!" << std::endl;
             exit(EXIT_FAILURE);
 #endif
         } else {
