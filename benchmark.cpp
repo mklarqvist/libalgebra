@@ -197,8 +197,25 @@ int linux_set_algebra_wrapper(std::string name,
     std::vector<unsigned long long> mins = compute_mins(allresults);
     std::vector<double> avg = compute_averages(allresults);
     
-    printf("%s-%u:\n",name.c_str(),n_bitmaps);
     if (verbose) {
+        printf("%s\t%u\t%.2f\t%.3f\t%.3f\t%llu\t%llu\t%llu\t%llu\t%llu\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\n",
+             name.c_str(),
+             n_bitmaps,
+             double(mins[1]) / mins[0], 
+             double(mins[0]) / (2*n_bitmaps), 
+             double(mins[1]) / (2*n_bitmaps),
+             mins[0], 
+             mins[1], 
+             mins[2], 
+             mins[3], 
+             mins[4],
+             avg[0], 
+             avg[1], 
+             avg[2], 
+             avg[3], 
+             avg[4]);
+    } else {
+        printf("%s-%u:\n",name.c_str(),n_bitmaps);
         printf("instructions per cycle %4.2f, cycles per 64-bit word:  %4.3f, "
                "instructions per 64-bit word %4.3f \n",
                 double(mins[1]) / mins[0], double(mins[0]) / (2*n_bitmaps), double(mins[1]) / (2*n_bitmaps));
@@ -209,8 +226,6 @@ int linux_set_algebra_wrapper(std::string name,
         printf("avg: %8.1f cycles, %8.1f instructions, \t%8.1f branch mis., %8.1f "
                "cache ref., %8.1f cache mis.\n",
                 avg[0], avg[1], avg[2], avg[3], avg[4]);
-    } else {
-        printf("cycles per 64-bit word:  %4.3f; ref cycles per 64-bit word: %4.3f \n", double(mins[0]) / (2*n_bitmaps), double(mins[5]) / (2*n_bitmaps));
     }
 
     return 1;
@@ -255,8 +270,25 @@ int linux_popcount_wrapper(std::string name,
     std::vector<unsigned long long> mins = compute_mins(allresults);
     std::vector<double> avg = compute_averages(allresults);
     
-    printf("%s-%u:\n",name.c_str(),n_bitmaps);
     if (verbose) {
+        printf("%s\t%u\t%.2f\t%.3f\t%.3f\t%llu\t%llu\t%llu\t%llu\t%llu\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\n",
+             name.c_str(),
+             n_bitmaps,
+             double(mins[1]) / mins[0], 
+             double(mins[0]) / n_bitmaps, 
+             double(mins[1]) / n_bitmaps,
+             mins[0], 
+             mins[1], 
+             mins[2], 
+             mins[3], 
+             mins[4],
+             avg[0], 
+             avg[1], 
+             avg[2], 
+             avg[3], 
+             avg[4]);
+    } else {
+        printf("%s-%u:\n",name.c_str(),n_bitmaps);
         printf("instructions per cycle %4.2f, cycles per 64-bit word:  %4.3f, "
                "instructions per 64-bit word %4.3f \n",
                 double(mins[1]) / mins[0], double(mins[0]) / n_bitmaps, double(mins[1]) / n_bitmaps);
@@ -267,8 +299,6 @@ int linux_popcount_wrapper(std::string name,
         printf("avg: %8.1f cycles, %8.1f instructions, \t%8.1f branch mis., %8.1f "
                "cache ref., %8.1f cache mis.\n",
                 avg[0], avg[1], avg[2], avg[3], avg[4]);
-    } else {
-        printf("cycles per 64-bit word:  %4.3f; ref cycles per 64-bit word: %4.3f \n", double(mins[0]) / n_bitmaps, double(mins[5]) / n_bitmaps);
     }
 
     return 1;
@@ -676,6 +706,14 @@ int benchmark(int n_repetitions, bool use_perf = false) {
         reps = {5000,5000,5000,5000,5000,2500,2500,2500,2500,2500,50,50,50,50,50,50,50,25,25,25};
     } else {
         reps = std::vector<uint32_t>(ranges.size(), n_repetitions);
+    }
+
+    if (use_perf) {
+#ifndef __linux__ 
+        std::cerr << "perf counter are only available on Linux systems!" << std::endl;
+        exit(EXIT_FAILURE);
+#endif
+        printf("Algorithm\tWords\tInstructions/cycle\tCycles/word\tInstructions/word\tMinCycles\tMinInstructions\tMinBranchMiss\tMinCacheRef\tminCacheMiss\tAvgCycles\tAvgInstructions\tAvgBranchMiss\tAvgCacheRef\tAvgCacheMiss\n");
     }
 
 
