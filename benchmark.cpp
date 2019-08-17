@@ -662,92 +662,58 @@ asm   volatile("RDTSCP\n\t"
     return 0;
 }
 
-int benchmark(uint32_t range, uint32_t n_values) {
-    std::cout << "Range = [0," << range << ") with bits=" << n_values << std::endl;
-
+int benchmark(int n_repetitions) {
     // Align some bitmaps.
-    uint32_t n_bitmaps = ceil(range / 64.0);
-    uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), n_bitmaps*sizeof(uint64_t));
-    uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), n_bitmaps*sizeof(uint64_t));
-    
-    generate_random_data(bitmaps, range, n_values);
-    generate_random_data(bitmaps2, range, n_values);
+    uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
+    uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
 
-    // Compute the population bit count.
-    uint64_t bitcnt = STORM_popcnt((uint8_t*)bitmaps, n_bitmaps*8);
-    std::cout << "POPCNT=" << bitcnt << std::endl;
-    
-    // Compute the positional bit count.
-    uint32_t flag_count[16];
-    int pospopcnt = STORM_pospopcnt_u16((uint16_t*)bitmaps, n_bitmaps*4, &flag_count[0]);
-    uint32_t pospopcnt_total = flag_count[0];
-    std::cout << "POSPOPCNT=" << flag_count[0];
-    for (int i = 1; i < 16; ++i) {
-        std::cout << "," << flag_count[i];
-        pospopcnt_total += flag_count[i];
+    std::vector<uint32_t> ranges = {4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576};
+    std::vector<uint32_t> reps;
+    if (n_repetitions <= 0) {
+        reps = {5000,5000,5000,5000,5000,2500,2500,2500,2500,2500,50,50,50,50,50,50,50,25,25,25};
+    } else {
+        reps = std::vector<uint32_t>(ranges.size(), n_repetitions);
     }
-    std::cout << std::endl;
-    std::cout << "POSPOPCNT total=" << pospopcnt_total << std::endl;
 
-    // Compute intersect count
-    uint64_t intersect_count = STORM_intersect_count(bitmaps, bitmaps2, n_bitmaps);
-    std::cout << "intersect count=" << intersect_count << std::endl;
 
-    // Compute union count
-    uint64_t union_count = STORM_union_count(bitmaps, bitmaps2, n_bitmaps);
-    std::cout << "union count=" << union_count << std::endl;
-
-    // Compute diff count
-    uint64_t diff_count = STORM_diff_count(bitmaps, bitmaps2, n_bitmaps);
-    std::cout << "diff count=" << diff_count << std::endl;
-
-    {
-        // Align some bitmaps.
-        uint32_t n_bitmaps = ceil(range / 64.0);
-        uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
-        uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
-
-        std::vector<uint32_t> ranges = {4,8,32,128,256,512,1024,2048,4096,8192,65536,262144,1048576};
-        std::vector<uint32_t> iterations = {2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000};
-        assert(ranges.size() == iterations.size());
-
-        for (int i = 0; i < ranges.size(); ++i) {
-            bench_unit unit_intsec, unit_union, unit_diff;
-            
+    for (int i = 0; i < ranges.size(); ++i) {
+        bench_unit unit_intsec, unit_union, unit_diff;
+        uint32_t n_bitmaps = ceil(ranges[i] / 64.0);
+        
 #ifdef __linux__ 
-            linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, iterations[i], bitmaps, range, n_values, ranges[i], true);
-            linux_popcount_wrapper("popcount",&STORM_popcnt, iterations[i], bitmaps, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
-            linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], true);
+        linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
+        linux_popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+        linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
 #else
-            popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, iterations[i], bitmaps, range, n_values, ranges[i], unit_intsec);
-            popcount_wrapper("popcount",&STORM_popcnt, iterations[i], bitmaps, range, n_values, ranges[i], unit_intsec);
-            set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
-            set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
-            set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
-            set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_union);
-            set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_intsec);
-            set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), iterations[i], bitmaps, bitmaps2, range, n_values, ranges[i], unit_diff);      
+        popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_union);
+        set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+        set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_diff);      
 #endif
-        }
-
-        // Clean up.
-        STORM_aligned_free(bitmaps);
-        STORM_aligned_free(bitmaps2);
     }
 
     // Clean up.
     STORM_aligned_free(bitmaps);
     STORM_aligned_free(bitmaps2);
+    
     return 1;
 }
 
-int main(int argc, char **argv) { 
-    benchmark(2048000, 50000);
+int main(int argc, char **argv) {
+    int n_repetitions = -1;
+    if (argc > 2) {
+        n_repetitions = std::atoi(argv[1]);
+    } 
+    benchmark(n_repetitions);
 
     return EXIT_SUCCESS;
 }

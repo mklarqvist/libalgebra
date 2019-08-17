@@ -191,4 +191,9 @@ before_script:
 script:
   - cmake .
   - make
-  - ./benchmark
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      sudo ./benchmark 10
+    else
+      ./benchmark 10
+    fi
