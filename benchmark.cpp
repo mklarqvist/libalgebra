@@ -5,6 +5,9 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#if !defined(_MSC_VER)
+#include "getopt.h"
+#endif
 
 void generate_random_data(uint64_t* data, uint32_t range, uint32_t n) {
     // Clear data
@@ -741,7 +744,7 @@ int main(int argc, char **argv) {
     int n_repetitions = -1;
     if (argc > 2) {
         n_repetitions = std::atoi(argv[1]);
-    } 
+    }
     benchmark(n_repetitions, false);
 #endif
 
