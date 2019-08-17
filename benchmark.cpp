@@ -662,7 +662,7 @@ asm   volatile("RDTSCP\n\t"
     return 0;
 }
 
-int benchmark(int n_repetitions) {
+int benchmark(int n_repetitions, bool use_perf = true) {
     // Align some bitmaps.
     uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
     uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
@@ -680,25 +680,30 @@ int benchmark(int n_repetitions) {
         bench_unit unit_intsec, unit_union, unit_diff;
         uint32_t n_bitmaps = ceil(ranges[i] / 64.0);
         
+        if (use_perf) {
 #ifdef __linux__ 
-        linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
-        linux_popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
-        linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
+            linux_popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
+            linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, true);
 #else
-        popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_union);
-        set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
-        set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_diff);      
+            std::cerr << "perf counter are only available on Linux systems!"
+            exit(EXIT_FAILURE);
 #endif
+        } else {
+            popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_union);
+            set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_intsec);
+            set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], n_bitmaps, unit_diff);
+        }
     }
 
     // Clean up.
@@ -709,11 +714,28 @@ int benchmark(int n_repetitions) {
 }
 
 int main(int argc, char **argv) {
+    bool verbose = false;
+    bool perf_subsystem = false;
+    int c;
     int n_repetitions = -1;
-    if (argc > 2) {
-        n_repetitions = std::atoi(argv[1]);
-    } 
-    benchmark(n_repetitions);
+
+    while ((c = getopt(argc, argv, "vpr:")) != -1) {
+        switch (c) {
+        case 'r':
+            n_repetitions = atoi(optarg);
+            break;
+        case 'v':
+            verbose = true;
+            break;
+        case 'p':
+            perf_subsystem = true;
+            break;
+        default:
+            abort();
+        }
+    }
+
+    benchmark(n_repetitions, perf_subsystem);
 
     return EXIT_SUCCESS;
 }

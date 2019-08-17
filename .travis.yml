@@ -193,7 +193,7 @@ script:
   - make
   - |
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
-      sudo ./benchmark 10
+      sudo ./benchmark -r 10
     else
-      ./benchmark 10
+      ./benchmark -r 10
     fi
