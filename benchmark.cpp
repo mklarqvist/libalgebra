@@ -7,6 +7,10 @@
 #include <vector>
 
 void generate_random_data(uint64_t* data, uint32_t range, uint32_t n) {
+    // Clear data
+    uint32_t n_bitmaps = ceil(n / 64.0);
+    memset(data, 0, sizeof(uint64_t)*n_bitmaps);
+
     // PRNG
     std::uniform_int_distribution<uint32_t> distr(0, range-1); // right inclusive
     std::random_device rd;  // obtain a random number from hardware
