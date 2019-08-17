@@ -662,7 +662,7 @@ asm   volatile("RDTSCP\n\t"
     return 0;
 }
 
-int benchmark(int n_repetitions, bool use_perf = true) {
+int benchmark(int n_repetitions, bool use_perf = false) {
     // Align some bitmaps.
     uint64_t* bitmaps  = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
     uint64_t* bitmaps2 = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), 1048576*sizeof(uint64_t));
@@ -714,6 +714,7 @@ int benchmark(int n_repetitions, bool use_perf = true) {
 }
 
 int main(int argc, char **argv) {
+#if !defined(_MSC_VER)
     bool verbose = false;
     bool perf_subsystem = false;
     int c;
@@ -736,6 +737,13 @@ int main(int argc, char **argv) {
     }
 
     benchmark(n_repetitions, perf_subsystem);
+#else
+    int n_repetitions = -1;
+    if (argc > 2) {
+        n_repetitions = std::atoi(argv[1]);
+    } 
+    benchmark(n_repetitions, false);
+#endif
 
     return EXIT_SUCCESS;
 }
