@@ -229,57 +229,57 @@ void STORM_aligned_free(void* memblock) {
     defined(_MSC_VER) || \
    (GNUC_PREREQ(4, 2) || \
     STORM_HAS_BUILTIN(__sync_val_compare_and_swap)))
-  #define HAVE_CPUID
+  #define STORM_HAVE_CPUID
 #endif
 
 #if GNUC_PREREQ(4, 2) || \
     STORM_HAS_BUILTIN(__builtin_popcount)
-  #define HAVE_BUILTIN_POPCOUNT
+  #define STORM_HAVE_BUILTIN_POPCOUNT
 #endif
 
 #if GNUC_PREREQ(4, 2) || \
     CLANG_PREREQ(3, 0)
-  #define HAVE_ASM_POPCNT
+  #define STORM_HAVE_ASM_POPCNT
 #endif
 
-#if defined(HAVE_CPUID) && \
-   (defined(HAVE_ASM_POPCNT) || \
+#if defined(STORM_HAVE_CPUID) && \
+   (defined(STORM_HAVE_ASM_POPCNT) || \
     defined(_MSC_VER))
-  #define HAVE_POPCNT
+  #define STORM_HAVE_POPCNT
 #endif
 
-#if defined(HAVE_CPUID) && \
+#if defined(STORM_HAVE_CPUID) && \
     GNUC_PREREQ(4, 9)
-  #define HAVE_SSE42
-  #define HAVE_AVX2
+  #define STORM_HAVE_SSE42
+  #define STORM_HAVE_AVX2
 #endif
 
-#if defined(HAVE_CPUID) && \
+#if defined(STORM_HAVE_CPUID) && \
     GNUC_PREREQ(5, 0)
-  #define HAVE_AVX512
+  #define STORM_HAVE_AVX512
 #endif
 
-#if defined(HAVE_CPUID) && \
+#if defined(STORM_HAVE_CPUID) && \
     defined(_MSC_VER) && \
     defined(__AVX2__)
-  #define HAVE_SSE42
-  #define HAVE_AVX2
+  #define STORM_HAVE_SSE42
+  #define STORM_HAVE_AVX2
 #endif
 
-#if defined(HAVE_CPUID) && \
+#if defined(STORM_HAVE_CPUID) && \
     defined(_MSC_VER) && \
     defined(__AVX512__)
-  #define HAVE_AVX512
+  #define STORM_HAVE_AVX512
 #endif
 
-#if defined(HAVE_CPUID) && \
+#if defined(STORM_HAVE_CPUID) && \
     CLANG_PREREQ(3, 8) && \
     STORM_HAS_ATTRIBUTE(target) && \
    (!defined(_MSC_VER) || defined(__AVX2__)) && \
    (!defined(__apple_build_version__) || __apple_build_version__ >= 8000000)
-  #define HAVE_SSE42
-  #define HAVE_AVX2
-  #define HAVE_AVX512
+  #define STORM_HAVE_SSE42
+  #define STORM_HAVE_AVX2
+  #define STORM_HAVE_AVX512
 #endif
 
 // Target attribute
@@ -302,7 +302,7 @@ void STORM_aligned_free(void* memblock) {
 extern "C" {
 #endif
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
 
 #if defined(_MSC_VER)
   #include <intrin.h>
@@ -357,8 +357,8 @@ void STORM_run_cpuid(int eax, int ecx, int* abcd) {
 #endif
 }
 
-#if defined(HAVE_AVX2) || \
-    defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX2) || \
+    defined(STORM_HAVE_AVX512)
 
 static 
 int STORM_get_xcr0() {
@@ -394,8 +394,8 @@ int STORM_get_cpuid() {
     if ((abcd[2] & STORM_CPUID_runtime_bit_SSE42) == STORM_CPUID_runtime_bit_SSE42)
         flags |= STORM_CPUID_runtime_bit_SSE42;
 
-#if defined(HAVE_AVX2) || \
-    defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX2) || \
+    defined(STORM_HAVE_AVX512)
 
     int osxsave_mask = (1 << 27);
 
@@ -424,10 +424,10 @@ int STORM_get_cpuid() {
 
   return flags;
 }
-#endif // defined(HAVE_CPUID)
+#endif // defined(STORM_HAVE_CPUID)
 
 /// Taken from libpopcnt.h
-#if defined(HAVE_ASM_POPCNT) && \
+#if defined(STORM_HAVE_ASM_POPCNT) && \
     defined(__x86_64__)
 
 STORM_FORCE_INLINE
@@ -437,7 +437,7 @@ uint64_t STORM_POPCOUNT(uint64_t x)
     return x;
 }
 
-#elif defined(HAVE_ASM_POPCNT) && \
+#elif defined(STORM_HAVE_ASM_POPCNT) && \
       defined(__i386__)
 
 STORM_FORCE_INLINE
@@ -477,7 +477,7 @@ uint64_t STORM_POPCOUNT(uint64_t x)
 }
 
 /* non x86 CPUs */
-#elif defined(HAVE_BUILTIN_POPCOUNT)
+#elif defined(STORM_HAVE_BUILTIN_POPCOUNT)
 
 STORM_FORCE_INLINE
 uint64_t STORM_POPCOUNT(uint64_t x) {
@@ -779,7 +779,7 @@ const uint8_t STORM_popcnt_lookup8bit[256] = {
 *  SSE4.1 functions
 ****************************/
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
 
 #include <immintrin.h>
 
@@ -1354,6 +1354,57 @@ uint64_t STORM_diff_count_csa_sse4(const __m128i* STORM_RESTRICT data1,
 
 STORM_TARGET("sse4.2")
 static 
+uint64_t STORM_popcnt_csa_sse4(const __m128i* STORM_RESTRICT data,
+                                size_t size)
+{
+    __m128i ones     = _mm_setzero_si128();
+    __m128i twos     = _mm_setzero_si128();
+    __m128i fours    = _mm_setzero_si128();
+    __m128i eights   = _mm_setzero_si128();
+    __m128i sixteens = _mm_setzero_si128();
+    __m128i twosA, twosB, foursA, foursB, eightsA, eightsB;
+
+    uint64_t i = 0;
+    uint64_t limit = size - size % 16;
+    uint64_t cnt64 = 0;
+
+#define LOAD(a) (_mm_loadu_si128(&data[i+a]))
+
+    for (/**/; i < limit; i += 16) {
+        STORM_CSA128(&twosA,   &ones,   ones,  LOAD(0), LOAD(1));
+        STORM_CSA128(&twosB,   &ones,   ones,  LOAD(2), LOAD(3));
+        STORM_CSA128(&foursA,  &twos,   twos,  twosA,  twosB);
+        STORM_CSA128(&twosA,   &ones,   ones,  LOAD(4), LOAD(5));
+        STORM_CSA128(&twosB,   &ones,   ones,  LOAD(6), LOAD(7));
+        STORM_CSA128(&foursB,  &twos,   twos,  twosA,  twosB);
+        STORM_CSA128(&eightsA, &fours,  fours, foursA, foursB);
+        STORM_CSA128(&twosA,   &ones,   ones,  LOAD(8), LOAD(9));
+        STORM_CSA128(&twosB,   &ones,   ones,  LOAD(10), LOAD(11));
+        STORM_CSA128(&foursA,  &twos,   twos,  twosA,  twosB);
+        STORM_CSA128(&twosA,   &ones,   ones,  LOAD(12), LOAD(13));
+        STORM_CSA128(&twosB,   &ones,   ones,  LOAD(14), LOAD(15));
+        STORM_CSA128(&foursB,  &twos,   twos,  twosA,  twosB);
+        STORM_CSA128(&eightsB, &fours,  fours, foursA, foursB);
+        STORM_CSA128(&sixteens,&eights, eights,eightsA,eightsB);
+
+        cnt64 += STORM_POPCOUNT_SSE(sixteens);
+    }
+#undef LOAD
+
+    cnt64 <<= 4;
+    cnt64 += STORM_POPCOUNT_SSE(eights) << 3;
+    cnt64 += STORM_POPCOUNT_SSE(fours)  << 2;
+    cnt64 += STORM_POPCOUNT_SSE(twos)   << 1;
+    cnt64 += STORM_POPCOUNT_SSE(ones)   << 0;
+
+    for (/**/; i < size; ++i)
+        cnt64 = STORM_POPCOUNT_SSE(_mm_loadu_si128(&data[i]));
+
+    return cnt64;
+}
+
+STORM_TARGET("sse4.2")
+static 
 uint64_t STORM_intersect_count_sse4(const uint64_t* STORM_RESTRICT b1, 
                             const uint64_t* STORM_RESTRICT b2, 
                             const size_t n_ints) 
@@ -1411,13 +1462,31 @@ uint64_t STORM_diff_count_sse4(const uint64_t* STORM_RESTRICT b1,
 
     return(count);
 }
+
+STORM_TARGET("sse4.2")
+static 
+uint64_t STORM_popcnt_sse4(const uint64_t* STORM_RESTRICT data, 
+                           const size_t n_ints) 
+{
+    uint64_t count = 0;
+    const __m128i* r1 = (__m128i*)data;
+    const uint32_t n_cycles = n_ints / 2;
+
+    count += STORM_popcnt_csa_sse4(r1, n_cycles);
+
+    for (int i = n_cycles*2; i < n_ints; ++i) {
+        count += STORM_POPCOUNT(data[i]);
+    }
+
+    return(count);
+}
 #endif
 
 /****************************
 *  AVX256 functions
 ****************************/
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
 
 #include <immintrin.h>
 
@@ -1845,7 +1914,7 @@ uint64_t STORM_diff_count_lookup_avx2_func(const uint8_t* STORM_RESTRICT data1,
 
 STORM_TARGET("avx2")
 static
-uint64_t STORM_popcnt_avx2(const __m256i* data, uint64_t size)
+uint64_t STORM_popcnt_csa_avx2(const __m256i* data, uint64_t size)
 {
     __m256i cnt      = _mm256_setzero_si256();
     __m256i ones     = _mm256_setzero_si256();
@@ -2170,13 +2239,35 @@ uint64_t STORM_diff_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1,
 {
     return STORM_diff_count_lookup_avx2_func((uint8_t*)b1, (uint8_t*)b2, n_ints*8);
 }
+
+STORM_TARGET("avx2")
+static 
+uint64_t STORM_popcnt_avx2(const uint64_t* data, 
+                           const size_t n_ints) 
+{
+    uint64_t count = 0;
+    const uint32_t n_cycles = n_ints / 4;
+    const uint32_t n_cycles_sse = (n_ints % 4) / 2;
+
+    const __m256i* r1 = (__m256i*)&data[0];
+    const __m128i* r2 = (__m128i*)&data[n_cycles_sse*4];
+
+    count += STORM_popcnt_csa_avx2(r1, n_cycles);
+    count += STORM_popcnt_csa_sse4(r2, n_cycles_sse);
+
+    for (int i = (4*n_cycles + 2*n_cycles_sse); i < n_ints; ++i) {
+        count += STORM_POPCOUNT(data[i]);
+    }
+
+    return count;
+}
 #endif
 
 /****************************
 *  AVX512BW functions
 ****************************/
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
 
 #include <immintrin.h>
 
@@ -2229,7 +2320,7 @@ void STORM_pospopcnt_csa_avx512(__m512i* STORM_RESTRICT h,
 
 STORM_TARGET("avx512bw")
 static 
-uint64_t STORM_popcnt_avx512(const __m512i* STORM_RESTRICT data, size_t size)
+uint64_t STORM_popcnt_csa_avx512bw(const __m512i* STORM_RESTRICT data, size_t size)
 {
     __m512i cnt      = _mm512_setzero_si512();
     __m512i ones     = _mm512_setzero_si512();
@@ -2355,29 +2446,29 @@ int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, size_t len, 
     }
 
     _mm512_storeu_si512((__m512i*)buffer, v1);
-    for (size_t i = 0; i < 32; i++) {
-        for (int j = 0; j < 16; j++) {
+    for (size_t i = 0; i < 32; ++i) {
+        for (int j = 0; j < 16; ++j) {
             out[j] += 1 * ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm512_storeu_si512((__m512i*)buffer, v2);
-    for (size_t i = 0; i < 32; i++) {
-        for (int j = 0; j < 16; j++) {
+    for (size_t i = 0; i < 32; ++i) {
+        for (int j = 0; j < 16; ++j) {
             out[j] += 2 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     
     _mm512_storeu_si512((__m512i*)buffer, v4);
-    for (size_t i = 0; i < 32; i++) {
-        for (int j = 0; j < 16; j++) {
+    for (size_t i = 0; i < 32; ++i) {
+        for (int j = 0; j < 16; ++j) {
             out[j] += 4 * ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm512_storeu_si512((__m512i*)buffer, v8);
-    for (size_t i = 0; i < 32; i++) {
-        for (int j = 0; j < 16; j++) {
+    for (size_t i = 0; i < 32; ++i) {
+        for (int j = 0; j < 16; ++j) {
             out[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
@@ -2837,6 +2928,30 @@ uint64_t STORM_diff_count_avx512(const uint64_t* STORM_RESTRICT b1,
 
     return(count);
 }
+
+STORM_TARGET("avx2")
+static 
+uint64_t STORM_popcnt_avx512(const uint64_t* data, 
+                             const size_t n_ints) 
+{
+    uint64_t count = 0;
+    const uint64_t n_64b = n_ints / 64;
+    const uint32_t n_cycles = n_64b / 8;
+    const uint32_t n_cycles_avx2 = (n_64b % 8) / 4;
+    const uint32_t n_cycles_sse = ((n_64b % 8) % 4) / 2;
+
+    const __m512i* r1 = (__m512i*)&data[0];
+    const __m256i* r2 = (__m256i*)&data[n_cycles*8];
+    const __m128i* r3 = (__m128i*)&data[n_cycles*8+n_cycles_avx2*4];
+
+    count += STORM_popcnt_csa_avx512bw(r1, n_cycles);
+    count += STORM_popcnt_csa_avx2(r2, n_cycles_avx2);
+    count += STORM_popcnt_csa_sse4(r3, n_cycles_sse);
+
+    for (int i = (8*n_cycles + 4*n_cycles + 2*n_cycles_sse); i < n_64b; ++i) {
+        count += STORM_POPCOUNT(data[i]);
+    }
+}
 #endif
 
 /****************************
@@ -2928,7 +3043,7 @@ typedef uint64_t (STORM_popcnt_func)(const uint8_t*, size_t);
 static 
 uint32_t STORM_get_alignment() {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -2948,19 +3063,19 @@ uint32_t STORM_get_alignment() {
 #endif
 
     uint32_t alignment = 0;
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW)) { // 16*512
         alignment = STORM_AVX512_ALIGNMENT;
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && alignment == 0) { // 16*256
         alignment = STORM_AVX2_ALIGNMENT;
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && alignment == 0) { // 16*128
         alignment = STORM_SSE_ALIGNMENT;
     }
@@ -2978,7 +3093,7 @@ uint32_t STORM_get_alignment() {
 static
 STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector) {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -2998,13 +3113,13 @@ STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector)
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_intersect_count_avx512;
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_intersect_count_avx2;
     }
@@ -3014,7 +3129,7 @@ STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector)
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_intersect_count_sse4;
     }
@@ -3026,7 +3141,7 @@ STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector)
 static
 STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -3046,13 +3161,13 @@ STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_union_count_avx512;
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_union_count_avx2;
     }
@@ -3062,7 +3177,7 @@ STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_union_count_sse4;
     }
@@ -3074,7 +3189,7 @@ STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
 static
 STORM_compute_func STORM_get_diff_count_func(const size_t n_bitmaps_vector) {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -3094,13 +3209,13 @@ STORM_compute_func STORM_get_diff_count_func(const size_t n_bitmaps_vector) {
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_diff_count_avx512;
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_diff_count_avx2;
     }
@@ -3110,7 +3225,7 @@ STORM_compute_func STORM_get_diff_count_func(const size_t n_bitmaps_vector) {
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_diff_count_sse4;
     }
@@ -3128,7 +3243,7 @@ uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1,
                                const size_t n_len)
 {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -3148,13 +3263,13 @@ uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1,
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_intersect_count_avx512(data1, data2, n_len);
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_intersect_count_avx2(data1, data2, n_len);
     }
@@ -3164,7 +3279,7 @@ uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1,
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_intersect_count_sse4(data1, data2, n_len);
     }
@@ -3179,7 +3294,7 @@ uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1,
                            const size_t n_len)
 {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -3199,13 +3314,13 @@ uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1,
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_union_count_avx512(data1, data2, n_len);
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_union_count_avx2(data1, data2, n_len);
     }
@@ -3215,7 +3330,7 @@ uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1,
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_union_count_sse4(data1, data2, n_len);
     }
@@ -3230,7 +3345,7 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1,
                           const size_t n_len)
 {
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
     /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
@@ -3250,13 +3365,13 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1,
 #endif
 
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_diff_count_avx512(data1, data2, n_len);
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_diff_count_avx2(data1, data2, n_len);
     }
@@ -3266,7 +3381,7 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1,
     }
 #endif
 
-#if defined(HAVE_SSE42)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_diff_count_sse4(data1, data2, n_len);
     }
@@ -3282,10 +3397,11 @@ static
 uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
     uint64_t cnt = 0;
     uint64_t i;
+    // size /= 8;
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
-        /* C++11 thread-safe singleton */
+    /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
     #else
     static int cpuid_ = -1;
@@ -3302,39 +3418,59 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
     #endif
 #endif
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
 
     /* AVX512 requires arrays >= 1024 bytes */
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) &&
         size >= 1024)
     {
-        cnt += STORM_popcnt_avx512((const __m512i*)data, size / 64);
-        data += size - size % 64;
-        size = size % 64;
+        // cnt += STORM_popcnt_avx512((const __m512i*)data, size / 64);
+        // data += size - size % 64;
+        // size = size % 64;
+        cnt += STORM_popcnt_avx512((uint64_t*)data, size/8);
+        data += size - size % 8;
+        size = size % 8;
     }
 
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
 
     /* AVX2 requires arrays >= 512 bytes */
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2) &&
         size >= 512)
     {
-        cnt += STORM_popcnt_avx2((const __m256i*)data, size / 32);
-        data += size - size % 32;
-        size = size % 32;
+        cnt += STORM_popcnt_avx2((uint64_t*)data, size/8);
+        data += size - size % 8;
+        size = size % 8;
+        // data += size - size % 32;
+        // size = size % 32;
     }
 
 #endif
 
-#if defined(HAVE_POPCNT)
+#if defined(HAVE_SSE4)
+
+    /* AVX2 requires arrays >= 512 bytes */
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE42) &&
+        size >= 256)
+    {
+        cnt += STORM_popcnt_sse4((uint64_t*)data, size/8));
+        data += size - size % 8;
+        size = size % 8;
+        // data += size - size % 32;
+        // size = size % 32;
+    }
+
+#endif
+
+#if defined(STORM_HAVE_POPCNT)
 
     if (cpuid & STORM_CPUID_runtime_bit_POPCNT) {
         cnt += STORM_popcount64_unrolled((const uint64_t*)data, size / 8);
         data += size - size % 8;
         size = size % 8;
-        for (i = 0; i < size; i++)
+        for (i = 0; i < size; ++i)
             cnt += STORM_popcount64(data[i]);
 
         return cnt;
@@ -3350,7 +3486,7 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
     }
 
     /* pure integer popcount algorithm */
-    for (i = 0; i < size; i++)
+    for (i = 0; i < size; ++i)
         cnt += STORM_popcount64(data[i]);
 
     return cnt;
@@ -3360,9 +3496,9 @@ static
 int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
     memset(out, 0, sizeof(uint32_t)*16);
 
-#if defined(HAVE_CPUID)
+#if defined(STORM_HAVE_CPUID)
     #if defined(__cplusplus)
-        /* C++11 thread-safe singleton */
+    /* C++11 thread-safe singleton */
     static const int cpuid = STORM_get_cpuid();
     #else
     static int cpuid_ = -1;
@@ -3379,7 +3515,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
     #endif
 #endif
 
-#if defined(HAVE_AVX512)
+#if defined(STORM_HAVE_AVX512)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW))
     {
         if (len < 32) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small
@@ -3390,7 +3526,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
     }
 #endif
 
-#if defined(HAVE_AVX2)
+#if defined(STORM_HAVE_AVX2)
     if ((cpuid & STORM_CPUID_runtime_bit_AVX2))
     {
         if (len < 128) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small

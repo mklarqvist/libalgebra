@@ -9,24 +9,28 @@
 #include "getopt.h"
 #endif
 
-void generate_random_data(uint64_t* data, uint32_t range, uint32_t n) {
+uint64_t* generate_random_data(uint32_t n_bitmaps) {
     // Clear data
-    uint32_t n_bitmaps = ceil(n / 64.0);
-    memset(data, 0, sizeof(uint64_t)*n_bitmaps);
+    // uint32_t n_bitmaps = ceil(n / 64.0);
+    // memset(data, 0, sizeof(uint64_t)*n_bitmaps);
+    uint64_t* mem = (uint64_t*)STORM_aligned_malloc(STORM_get_alignment(), n_bitmaps*sizeof(uint64_t));
 
     // PRNG
-    std::uniform_int_distribution<uint32_t> distr(0, range-1); // right inclusive
+    std::uniform_int_distribution<uint32_t> distr(0, std::numeric_limits<uint32_t>::max()-1); // right inclusive
     std::random_device rd;  // obtain a random number from hardware
     std::mt19937 eng(rd()); // seed the generator
 
      // Generate some random data.
     uint32_t n_unique = 0;
     // while (n_unique < n) {
-    for (int i = 0; i < n; ++i) {
-        uint32_t val = distr(eng);
-        n_unique += (data[val / 64] & (1ULL << (val % 64))) == 0;
-        data[val / 64] |= 1ULL << (val % 64);
+    for (int i = 0; i < n_bitmaps; ++i) {
+        uint32_t val1 = distr(eng);
+        uint32_t val2 = distr(eng);
+        uint64_t x = ((uint64_t)val1 << 32) | val2;
+        mem[i] = x;
     }
+
+    return mem;
 }
 
 #ifdef __linux__
@@ -159,8 +163,6 @@ compute_averages(std::vector< std::vector<unsigned long long> > allresults) {
 int linux_set_algebra_wrapper(std::string name,
     STORM_compute_func f, 
     int iterations,
-    uint64_t* STORM_RESTRICT data1, 
-    uint64_t* STORM_RESTRICT data2, 
     uint32_t range,
     uint32_t n_values,
     uint32_t n_bitmaps, 
@@ -184,14 +186,17 @@ int linux_set_algebra_wrapper(std::string name,
 
     volatile uint64_t total = 0; // voltatile to prevent compiler to remove work through optimization    
     for (uint32_t i = 0; i < iterations; i++) {
-        generate_random_data(data1, range, n_values);
-        generate_random_data(data2, range, n_values);
+        uint64_t* mem1 = generate_random_data(n_values);
+        uint64_t* mem2 = generate_random_data(n_values);
         
         unified.start();
         // Call argument subroutine pointer.
-        total += (*f)(data1, data2, n_bitmaps);
+        total += (*f)(mem1, mem2, n_bitmaps);
         unified.end(results);
         allresults.push_back(results);
+
+        STORM_aligned_free(mem1);
+        STORM_aligned_free(mem2);
     }
 
     std::vector<unsigned long long> mins = compute_mins(allresults);
@@ -234,10 +239,9 @@ int linux_set_algebra_wrapper(std::string name,
 int linux_popcount_wrapper(std::string name,
     STORM_popcnt_func f, 
     int iterations,
-    uint64_t* data,
     uint32_t range,
     uint32_t n_values,
-    uint32_t n_bitmaps,
+    uint32_t n_bitmaps, 
     bool verbose) 
 {
     std::vector<int> evts;
@@ -258,14 +262,15 @@ int linux_popcount_wrapper(std::string name,
 
     volatile uint64_t total = 0; // voltatile to prevent compiler to remove work through optimization    
     for (uint32_t i = 0; i < iterations; i++) {
-        generate_random_data(data, range, n_values);
-        size_t n_vals = n_bitmaps*8;
+        uint64_t* mem1 = generate_random_data(n_values);
         
         unified.start();
         // Call argument subroutine pointer.
-        total += (*f)((uint8_t*)data, n_vals);
+        total += (*f)((uint8_t*)mem1, n_bitmaps*8);
         unified.end(results);
         allresults.push_back(results);
+
+        STORM_aligned_free(mem1);
     }
 
     std::vector<unsigned long long> mins = compute_mins(allresults);
@@ -276,8 +281,8 @@ int linux_popcount_wrapper(std::string name,
              name.c_str(),
              n_bitmaps,
              double(mins[1]) / mins[0], 
-             double(mins[0]) / n_bitmaps, 
-             double(mins[1]) / n_bitmaps,
+             double(mins[0]) / (n_bitmaps), 
+             double(mins[1]) / (n_bitmaps),
              mins[0], 
              mins[1], 
              mins[2], 
@@ -292,7 +297,7 @@ int linux_popcount_wrapper(std::string name,
         printf("%s-%u:\n",name.c_str(),n_bitmaps);
         printf("instructions per cycle %4.2f, cycles per 64-bit word:  %4.3f, "
                "instructions per 64-bit word %4.3f \n",
-                double(mins[1]) / mins[0], double(mins[0]) / n_bitmaps, double(mins[1]) / n_bitmaps);
+                double(mins[1]) / mins[0], double(mins[0]) / (n_bitmaps), double(mins[1]) / (n_bitmaps));
         // first we display mins
         printf("min: %8llu cycles, %8llu instructions, \t%8llu branch mis., %8llu "
                "cache ref., %8llu cache mis.\n",
@@ -440,8 +445,6 @@ typedef std::chrono::high_resolution_clock::time_point clockdef;
 int set_algebra_wrapper(std::string name,
     STORM_compute_func f, 
     int iterations,
-    uint64_t* STORM_RESTRICT data1, 
-    uint64_t* STORM_RESTRICT data2, 
     uint32_t range,
     uint32_t n_values,
     size_t n_bitmaps, 
@@ -474,8 +477,8 @@ asm   volatile("RDTSCP\n\t"
                "mov %%eax, %1\n\t"
                "CPUID\n\t": "=r" (cycles_high1), "=r" (cycles_low1):: "%rax", "%rbx", "%rcx", "%rdx");
 #endif
-    generate_random_data(data1, range, n_values);
-    generate_random_data(data2, range, n_values);
+    uint64_t* mem1 = generate_random_data(n_values);
+    uint64_t* mem2 = generate_random_data(n_values);
 
     volatile uint64_t total = 0; // voltatile to prevent compiler to remove work through optimization
     clockdef t1 = std::chrono::high_resolution_clock::now();
@@ -496,7 +499,7 @@ asm   volatile("RDTSCP\n\t"
 
     for (int i = 0; i < iterations; ++i) {
         // Call argument subroutine pointer.
-        total += (*f)(data1, data2, n_bitmaps);
+        total += (*f)(mem1, mem2, n_bitmaps);
     }
 
 #ifndef _MSC_VER 
@@ -512,6 +515,9 @@ asm   volatile("RDTSCP\n\t"
 
     clockdef t2 = std::chrono::high_resolution_clock::now();
     auto time_span = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+
+    STORM_aligned_free(mem1);
+    STORM_aligned_free(mem2);
 
     uint64_t start = ( ((uint64_t)cycles_high  << 32) | cycles_low  );
     uint64_t end   = ( ((uint64_t)cycles_high1 << 32) | cycles_low1 );
@@ -537,7 +543,6 @@ asm   volatile("RDTSCP\n\t"
 int popcount_wrapper(std::string name,
     STORM_popcnt_func f, 
     int iterations,
-    uint64_t* data,
     uint32_t range,
     uint32_t n_values,
     uint32_t n_bitmaps, 
@@ -570,7 +575,7 @@ asm   volatile("RDTSCP\n\t"
                "mov %%eax, %1\n\t"
                "CPUID\n\t": "=r" (cycles_high1), "=r" (cycles_low1):: "%rax", "%rbx", "%rcx", "%rdx");
 #endif
-    generate_random_data(data, range, n_values);
+    uint64_t* mem = generate_random_data(n_values);
 
     volatile uint64_t total = 0; // voltatile to prevent compiler to remove work through optimization
     clockdef t1 = std::chrono::high_resolution_clock::now();
@@ -592,7 +597,7 @@ asm   volatile("RDTSCP\n\t"
     size_t n_b = n_bitmaps*8;
     for (int i = 0; i < iterations; ++i) {
         // Call argument subroutine pointer.
-        total += (*f)((uint8_t*)data, n_b);
+        total += (*f)((uint8_t*)mem, n_b);
     }
 
 #ifndef _MSC_VER 
@@ -608,6 +613,8 @@ asm   volatile("RDTSCP\n\t"
 
     clockdef t2 = std::chrono::high_resolution_clock::now();
     auto time_span = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+
+    STORM_aligned_free(mem);
 
     uint64_t start = ( ((uint64_t)cycles_high  << 32) | cycles_low  );
     uint64_t end   = ( ((uint64_t)cycles_high1 << 32) | cycles_low1 );
@@ -638,7 +645,7 @@ int benchmark(int n_repetitions, bool use_perf = false) {
     std::vector<uint32_t> ranges = {4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576};
     std::vector<uint32_t> reps;
     if (n_repetitions <= 0) {
-        reps = {5000,5000,5000,5000,5000,2500,2500,2500,2500,2500,50,50,50,50,50,50,50,25,25,25};
+        reps = {5000,5000,5000,5000,5000,2500,2500,2500,2500,2500,150,150,150,150,150,150,150,100,100,100};
     } else {
         reps = std::vector<uint32_t>(ranges.size(), n_repetitions);
     }
@@ -657,27 +664,27 @@ int benchmark(int n_repetitions, bool use_perf = false) {
         
         if (use_perf) {
 #ifdef __linux__ 
-            linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], ranges[i], true);
-            linux_popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
-            linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], true);
+            linux_popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_popcount_wrapper("popcount",&STORM_popcnt, reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], true);
+            linux_set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], true);
 #else
             std::cerr << "perf counter are only available on Linux systems!" << std::endl;
             exit(EXIT_FAILURE);
 #endif
         } else {
-            popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], bitmaps, ranges[i], ranges[i], ranges[i], unit_intsec);
-            popcount_wrapper("popcount",&STORM_popcnt, reps[i], bitmaps, ranges[i], ranges[i], ranges[i], unit_intsec);
-            set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_intsec);
-            set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_intsec);
-            set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_intsec);
-            set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_union);
-            set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_intsec);
-            set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], bitmaps, bitmaps2, ranges[i], ranges[i], ranges[i], unit_diff);
+            popcount_wrapper("popcount-naive",&popcount_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            popcount_wrapper("popcount",&STORM_popcnt, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            set_algebra_wrapper("intersect-naive",&intersect_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            set_algebra_wrapper("intersect",STORM_get_intersect_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            set_algebra_wrapper("union-naive",&union_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            set_algebra_wrapper("union",STORM_get_union_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], unit_union);
+            set_algebra_wrapper("diff-naive",&diff_scalar_naive_nosimd, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+            set_algebra_wrapper("diff",STORM_get_diff_count_func(ranges[i]), reps[i], ranges[i], ranges[i], ranges[i], unit_diff);
         }
     }
 
