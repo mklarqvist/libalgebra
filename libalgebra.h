@@ -2935,10 +2935,9 @@ uint64_t STORM_popcnt_avx512(const uint64_t* data,
                              const size_t n_ints) 
 {
     uint64_t count = 0;
-    const uint64_t n_64b = n_ints / 64;
-    const uint32_t n_cycles = n_64b / 8;
-    const uint32_t n_cycles_avx2 = (n_64b % 8) / 4;
-    const uint32_t n_cycles_sse = ((n_64b % 8) % 4) / 2;
+    const uint32_t n_cycles = n_ints / 8;
+    const uint32_t n_cycles_avx2 = (n_ints % 8) / 4;
+    const uint32_t n_cycles_sse = ((n_ints % 8) % 4) / 2;
 
     const __m512i* r1 = (__m512i*)&data[0];
     const __m256i* r2 = (__m256i*)&data[n_cycles*8];
@@ -2948,7 +2947,7 @@ uint64_t STORM_popcnt_avx512(const uint64_t* data,
     count += STORM_popcnt_csa_avx2(r2, n_cycles_avx2);
     count += STORM_popcnt_csa_sse4(r3, n_cycles_sse);
 
-    for (int i = (8*n_cycles + 4*n_cycles + 2*n_cycles_sse); i < n_64b; ++i) {
+    for (int i = (8*n_cycles + 4*n_cycles + 2*n_cycles_sse); i < n_ints; ++i) {
         count += STORM_POPCOUNT(data[i]);
     }
 

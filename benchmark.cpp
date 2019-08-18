@@ -33,6 +33,32 @@ uint64_t* generate_random_data(uint32_t n_bitmaps) {
     return mem;
 }
 
+#if !defined(__clang__) && !defined(_MSC_VER)
+__attribute__((optimize("no-tree-vectorize")))
+#endif
+uint64_t popcount_scalar_naive_nosimd(const uint8_t* data, size_t len) {
+    uint64_t total = 0;
+    // for (int i = 0; i < len; ++i) {
+    //     total += STORM_popcount64(data1[i] & data2[i]);
+    // }
+    // assert(len % 8 == 0);
+
+    for (int j = 0; j < len; j += 8) {
+        // total += STORM_popcount64(data[i]);
+        // diff = data1[i] & data2[i];
+        total += STORM_popcnt_lookup8bit[data[j+0]];
+        total += STORM_popcnt_lookup8bit[data[j+1]];
+        total += STORM_popcnt_lookup8bit[data[j+2]];
+        total += STORM_popcnt_lookup8bit[data[j+3]];
+        total += STORM_popcnt_lookup8bit[data[j+4]];
+        total += STORM_popcnt_lookup8bit[data[j+5]];
+        total += STORM_popcnt_lookup8bit[data[j+6]];
+        total += STORM_popcnt_lookup8bit[data[j+7]];
+    }
+
+    return total;
+}
+
 #ifdef __linux__
 
 #include <asm/unistd.h>       // for __NR_perf_event_open
@@ -266,9 +292,13 @@ int linux_popcount_wrapper(std::string name,
         
         unified.start();
         // Call argument subroutine pointer.
-        total += (*f)((uint8_t*)mem1, n_bitmaps*8);
+        uint64_t a = (*f)((uint8_t*)mem1, n_bitmaps*8);
         unified.end(results);
         allresults.push_back(results);
+
+        uint64_t b = popcount_scalar_naive_nosimd((uint8_t*)mem1, n_bitmaps*8);
+        assert(a == b);
+        total += a;
 
         STORM_aligned_free(mem1);
     }
@@ -331,32 +361,6 @@ uint64_t get_cpu_cycles() {
 #endif
     return result;
 };
-
-#if !defined(__clang__) && !defined(_MSC_VER)
-__attribute__((optimize("no-tree-vectorize")))
-#endif
-uint64_t popcount_scalar_naive_nosimd(const uint8_t* data, size_t len) {
-    uint64_t total = 0;
-    // for (int i = 0; i < len; ++i) {
-    //     total += STORM_popcount64(data1[i] & data2[i]);
-    // }
-    // assert(len % 8 == 0);
-
-    for (int j = 0; j < len; j += 8) {
-        // total += STORM_popcount64(data[i]);
-        // diff = data1[i] & data2[i];
-        total += STORM_popcnt_lookup8bit[data[j+0]];
-        total += STORM_popcnt_lookup8bit[data[j+1]];
-        total += STORM_popcnt_lookup8bit[data[j+2]];
-        total += STORM_popcnt_lookup8bit[data[j+3]];
-        total += STORM_popcnt_lookup8bit[data[j+4]];
-        total += STORM_popcnt_lookup8bit[data[j+5]];
-        total += STORM_popcnt_lookup8bit[data[j+6]];
-        total += STORM_popcnt_lookup8bit[data[j+7]];
-    }
-
-    return total;
-}
 
 #if !defined(__clang__) && !defined(_MSC_VER)
 __attribute__((optimize("no-tree-vectorize")))
