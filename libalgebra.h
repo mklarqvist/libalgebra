@@ -287,7 +287,7 @@ void STORM_aligned_free(void* memblock) {
   #define HAVE_AVX512
 #endif
 
-//
+// Target attribute
 #if !defined(_MSC_VER)
   #define STORM_TARGET(x) __attribute__ ((target (x)))
 #else
@@ -498,7 +498,7 @@ uint64_t STORM_POPCOUNT(uint64_t x) {
 static 
 uint64_t STORM_intersect_count_unrolled(const uint64_t* STORM_RESTRICT data1, 
                                         const uint64_t* STORM_RESTRICT data2, 
-                                        uint64_t size)
+                                        size_t size)
 {
     const uint64_t limit = size - size % 4;
     uint64_t cnt = 0;
@@ -520,7 +520,7 @@ uint64_t STORM_intersect_count_unrolled(const uint64_t* STORM_RESTRICT data1,
 static 
 uint64_t STORM_union_count_unrolled(const uint64_t* STORM_RESTRICT data1, 
                                     const uint64_t* STORM_RESTRICT data2, 
-                                    uint64_t size)
+                                    size_t size)
 {
     const uint64_t limit = size - size % 4;
     uint64_t cnt = 0;
@@ -542,7 +542,7 @@ uint64_t STORM_union_count_unrolled(const uint64_t* STORM_RESTRICT data1,
 static 
 uint64_t STORM_diff_count_unrolled(const uint64_t* STORM_RESTRICT data1, 
                                    const uint64_t* STORM_RESTRICT data2, 
-                                   uint64_t size)
+                                   size_t size)
 {
     const uint64_t limit = size - size % 4;
     uint64_t cnt = 0;
@@ -562,10 +562,10 @@ uint64_t STORM_diff_count_unrolled(const uint64_t* STORM_RESTRICT data1,
 }
 
 static
-int STORM_pospopcnt_u16_scalar_naive(const uint16_t* data, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_scalar_naive(const uint16_t* data, size_t len, uint32_t* out) {
     for (int i = 0; i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((data[i] & (1 << j)) >> j);
+            out[j] += ((data[i] & (1 << j)) >> j);
         }
     }
 
@@ -591,7 +591,7 @@ uint64_t STORM_pospopcnt_loadu_u64(const void* ptr) {
 // By @aqrit (https://github.com/aqrit)
 // @see: https://gist.github.com/aqrit/c729815b0165c139d0bac642ab7ee104
 static
-int STORM_pospopcnt_u16_scalar_umul128_unroll2(const uint16_t* in, uint32_t n, uint32_t* out) {
+int STORM_pospopcnt_u16_scalar_umul128_unroll2(const uint16_t* in, size_t n, uint32_t* out) {
     while (n >= 8) {
         uint64_t counter_a = 0; // 4 packed 12-bit counters
         uint64_t counter_b = 0;
@@ -693,10 +693,10 @@ int STORM_pospopcnt_u16_scalar_umul128_unroll2(const uint16_t* in, uint32_t n, u
 STORM_FORCE_INLINE
 uint64_t STORM_popcount64(uint64_t x)
 {
-    uint64_t m1 = 0x5555555555555555ll;
-    uint64_t m2 = 0x3333333333333333ll;
-    uint64_t m4 = 0x0F0F0F0F0F0F0F0Fll;
-    uint64_t h01 = 0x0101010101010101ll;
+    uint64_t m1  = UINT64_C(0x5555555555555555);
+    uint64_t m2  = UINT64_C(0x3333333333333333);
+    uint64_t m4  = UINT64_C(0x0F0F0F0F0F0F0F0F);
+    uint64_t h01 = UINT64_C(0x0101010101010101);
 
     x -= (x >> 1) & m1;
     x = (x & m2) + ((x >> 2) & m2);
@@ -782,13 +782,6 @@ const uint8_t STORM_popcnt_lookup8bit[256] = {
 
 #include <immintrin.h>
 
-#ifndef STORM_POPCOUNT_SSE4
-#define STORM_POPCOUNT_SSE4(A, B) {               \
-    A += STORM_POPCOUNT(_mm_extract_epi64(B, 0)); \
-    A += STORM_POPCOUNT(_mm_extract_epi64(B, 1)); \
-}
-#endif
-
 STORM_TARGET("sse4.2")
 STORM_FORCE_INLINE  
 uint64_t STORM_POPCOUNT_SSE(const __m128i n) {
@@ -839,7 +832,7 @@ void STORM_pospopcnt_csa_sse(__m128i* STORM_RESTRICT h,
 // @see: https://gist.github.com/aqrit/cb52b2ac5b7d0dfe9319c09d27237bf3
 STORM_TARGET("sse4.2")
 static
-int STORM_pospopcnt_u16_sse_sad(const uint16_t* data, uint32_t len, uint32_t* flag_counts) {
+int STORM_pospopcnt_u16_sse_sad(const uint16_t* data, size_t len, uint32_t* flag_counts) {
     const __m128i zero = _mm_setzero_si128();
     const __m128i mask_lo_byte = _mm_srli_epi16(_mm_cmpeq_epi8(zero, zero), 8);
     const __m128i mask_lo_cnt  = _mm_srli_epi16(mask_lo_byte, 2);
@@ -1036,7 +1029,7 @@ int STORM_pospopcnt_u16_sse_sad(const uint16_t* data, uint32_t len, uint32_t* fl
 
 STORM_TARGET("sse4.2")
 static
-int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, size_t len, uint32_t* out) {
     const __m128i* data_vectors = (const __m128i*)(array);
     const uint32_t n_cycles = len / 8;
 
@@ -1053,8 +1046,8 @@ int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, uint32_t
         U(0,1) U(2,3) U(4,5) U(6,7)
         
         for (int i = 0; i < 8; ++i) {
-#define A0(p) flags[ 7 - i] += _mm_popcnt_u32(_mm_movemask_epi8(input##p));
-#define A1(k) flags[15 - i] += _mm_popcnt_u32(_mm_movemask_epi8(input##k));
+#define A0(p) out[ 7 - i] += _mm_popcnt_u32(_mm_movemask_epi8(input##p));
+#define A1(k) out[15 - i] += _mm_popcnt_u32(_mm_movemask_epi8(input##k));
 #define A(p, k) A0(p) A1(k)
             A(0,1) A(2, 3) A(4,5) A(6, 7)
 
@@ -1088,7 +1081,7 @@ int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, uint32_t
     i *= 8;
     for (/**/; i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -1106,10 +1099,10 @@ int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, uint32_t
 
 STORM_TARGET("sse4.2")
 static
-int STORM_pospopcnt_u16_sse_harvey_seal(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_sse_harvey_seal(const uint16_t* array, size_t len, uint32_t* out) {
     for (uint32_t i = len - (len % (16 * 8)); i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -1169,7 +1162,7 @@ int STORM_pospopcnt_u16_sse_harvey_seal(const uint16_t* array, uint32_t len, uin
         for (size_t i = 0; i < 16; ++i) {
             _mm_storeu_si128((__m128i*)buffer, counter[i]);
             for (size_t z = 0; z < 8; z++) {
-                flags[i] += 16 * (uint32_t)buffer[z];
+                out[i] += 16 * (uint32_t)buffer[z];
             }
         }
     }
@@ -1177,26 +1170,26 @@ int STORM_pospopcnt_u16_sse_harvey_seal(const uint16_t* array, uint32_t len, uin
     _mm_storeu_si128((__m128i*)buffer, v1);
     for (size_t i = 0; i < 8; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((buffer[i] & (1 << j)) >> j);
+            out[j] += ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm_storeu_si128((__m128i*)buffer, v2);
     for (size_t i = 0; i < 8; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 2 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 2 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     _mm_storeu_si128((__m128i*)buffer, v4);
     for (size_t i = 0; i < 8; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 4 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 4 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     _mm_storeu_si128((__m128i*)buffer, v8);
     for (size_t i = 0; i < 8; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 8 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     return 0;
@@ -1206,7 +1199,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_intersect_count_csa_sse4(const __m128i* STORM_RESTRICT data1, 
                                         const __m128i* STORM_RESTRICT data2, 
-                                        uint64_t size)
+                                        size_t size)
 {
     __m128i ones     = _mm_setzero_si128();
     __m128i twos     = _mm_setzero_si128();
@@ -1258,7 +1251,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_union_count_csa_sse4(const __m128i* STORM_RESTRICT data1, 
                                     const __m128i* STORM_RESTRICT data2, 
-                                    uint64_t size)
+                                    size_t size)
 {
     __m128i ones     = _mm_setzero_si128();
     __m128i twos     = _mm_setzero_si128();
@@ -1310,7 +1303,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_diff_count_csa_sse4(const __m128i* STORM_RESTRICT data1, 
                                    const __m128i* STORM_RESTRICT data2, 
-                                   uint64_t size)
+                                   size_t size)
 {
     __m128i ones     = _mm_setzero_si128();
     __m128i twos     = _mm_setzero_si128();
@@ -1362,7 +1355,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_intersect_count_sse4(const uint64_t* STORM_RESTRICT b1, 
                             const uint64_t* STORM_RESTRICT b2, 
-                            const uint32_t n_ints) 
+                            const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m128i* r1 = (__m128i*)b1;
@@ -1382,7 +1375,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_union_count_sse4(const uint64_t* STORM_RESTRICT b1, 
                                 const uint64_t* STORM_RESTRICT b2, 
-                                const uint32_t n_ints) 
+                                const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m128i* r1 = (__m128i*)b1;
@@ -1402,7 +1395,7 @@ STORM_TARGET("sse4.2")
 static 
 uint64_t STORM_diff_count_sse4(const uint64_t* STORM_RESTRICT b1, 
                             const uint64_t* STORM_RESTRICT b2, 
-                            const uint32_t n_ints) 
+                            const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m128i* r1 = (__m128i*)b1;
@@ -1427,15 +1420,6 @@ uint64_t STORM_diff_count_sse4(const uint64_t* STORM_RESTRICT b1,
 
 #include <immintrin.h>
 
-#ifndef STORM_POPCOUNT_AVX2
-#define STORM_POPCOUNT_AVX2(A, B) {                  \
-    A += STORM_POPCOUNT(_mm256_extract_epi64(B, 0)); \
-    A += STORM_POPCOUNT(_mm256_extract_epi64(B, 1)); \
-    A += STORM_POPCOUNT(_mm256_extract_epi64(B, 2)); \
-    A += STORM_POPCOUNT(_mm256_extract_epi64(B, 3)); \
-}
-#endif
-
 STORM_TARGET("avx2")
 STORM_FORCE_INLINE 
 void STORM_CSA256(__m256i* h, __m256i* l, __m256i a, __m256i b, __m256i c) {
@@ -1458,7 +1442,7 @@ void STORM_pospopcnt_csa_avx2(__m256i* STORM_RESTRICT h,
 
 STORM_TARGET("avx2")
 static
-int STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(const uint16_t* array, size_t len, uint32_t* out) {
     const __m256i* data_vectors = (const __m256i*)(array);
     const uint32_t n_cycles = len / 16;
 
@@ -1474,8 +1458,8 @@ int STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(const uint16_t* array, uint32_
        U(0,1) U(2, 3) U(4, 5) U(6, 7)
         
         for (int i = 0; i < 8; ++i) {
-#define A0(p) flags[ 7 - i] += _mm_popcnt_u32(_mm256_movemask_epi8(input##p));
-#define A1(k) flags[15 - i] += _mm_popcnt_u32(_mm256_movemask_epi8(input##k));
+#define A0(p) out[ 7 - i] += _mm_popcnt_u32(_mm256_movemask_epi8(input##p));
+#define A1(k) out[15 - i] += _mm_popcnt_u32(_mm256_movemask_epi8(input##k));
 #define A(p, k) A0(p) A1(k)
             A(0,1) A(2, 3) A(4, 5) A(6, 7)
 
@@ -1508,7 +1492,7 @@ int STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(const uint16_t* array, uint32_
     i *= 16;
     for (/**/; i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -1527,10 +1511,10 @@ int STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(const uint16_t* array, uint32_
 
 STORM_TARGET("avx2")
 static 
-int STORM_pospopcnt_u16_avx2_harvey_seal(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_avx2_harvey_seal(const uint16_t* array, size_t len, uint32_t* out) {
     for (uint32_t i = len - (len % (16 * 16)); i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -1591,7 +1575,7 @@ int STORM_pospopcnt_u16_avx2_harvey_seal(const uint16_t* array, uint32_t len, ui
         for (size_t i = 0; i < 16; ++i) {
             _mm256_storeu_si256((__m256i*)buffer, counter[i]);
             for (size_t z = 0; z < 16; z++) {
-                flags[i] += 16 * (uint32_t)buffer[z];
+                out[i] += 16 * (uint32_t)buffer[z];
             }
         }
     }
@@ -1599,26 +1583,26 @@ int STORM_pospopcnt_u16_avx2_harvey_seal(const uint16_t* array, uint32_t len, ui
     _mm256_storeu_si256((__m256i*)buffer, v1);
     for (size_t i = 0; i < 16; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((buffer[i] & (1 << j)) >> j);
+            out[j] += ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm256_storeu_si256((__m256i*)buffer, v2);
     for (size_t i = 0; i < 16; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 2 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 2 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     _mm256_storeu_si256((__m256i*)buffer, v4);
     for (size_t i = 0; i < 16; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 4 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 4 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     _mm256_storeu_si256((__m256i*)buffer, v8);
     for (size_t i = 0; i < 16; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += 8 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     return 0;
@@ -1927,7 +1911,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_intersect_count_csa_avx2(const __m256i* STORM_RESTRICT data1, 
                                         const __m256i* STORM_RESTRICT data2, 
-                                        uint64_t size)
+                                        size_t size)
 {
     __m256i cnt      = _mm256_setzero_si256();
     __m256i ones     = _mm256_setzero_si256();
@@ -1986,7 +1970,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_union_count_csa_avx2(const __m256i* STORM_RESTRICT data1, 
                                     const __m256i* STORM_RESTRICT data2, 
-                                    uint64_t size)
+                                    size_t size)
 {
     __m256i cnt      = _mm256_setzero_si256();
     __m256i ones     = _mm256_setzero_si256();
@@ -2045,7 +2029,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_diff_count_csa_avx2(const __m256i* STORM_RESTRICT data1, 
                                    const __m256i* STORM_RESTRICT data2, 
-                                   uint64_t size)
+                                   size_t size)
 {
     __m256i cnt      = _mm256_setzero_si256();
     __m256i ones     = _mm256_setzero_si256();
@@ -2103,7 +2087,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_intersect_count_avx2(const uint64_t* STORM_RESTRICT b1, 
                                     const uint64_t* STORM_RESTRICT b2, 
-                                    const uint32_t n_ints)
+                                    const size_t n_ints)
 {
     uint64_t count = 0;
     const __m256i* r1 = (__m256i*)b1;
@@ -2122,8 +2106,8 @@ uint64_t STORM_intersect_count_avx2(const uint64_t* STORM_RESTRICT b1,
 STORM_TARGET("avx2")
 static 
 uint64_t STORM_union_count_avx2(const uint64_t* STORM_RESTRICT b1, 
-                   const uint64_t* STORM_RESTRICT b2, 
-                   const uint32_t n_ints)
+                                const uint64_t* STORM_RESTRICT b2, 
+                                const size_t n_ints)
 {
     uint64_t count = 0;
     const __m256i* r1 = (__m256i*)b1;
@@ -2142,8 +2126,8 @@ uint64_t STORM_union_count_avx2(const uint64_t* STORM_RESTRICT b1,
 STORM_TARGET("avx2")
 static 
 uint64_t STORM_diff_count_avx2(const uint64_t* STORM_RESTRICT b1, 
-                   const uint64_t* STORM_RESTRICT b2, 
-                   const uint32_t n_ints)
+                               const uint64_t* STORM_RESTRICT b2, 
+                               const size_t n_ints)
 {
     uint64_t count = 0;
     const __m256i* r1 = (__m256i*)b1;
@@ -2163,7 +2147,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_intersect_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                            const uint64_t* STORM_RESTRICT b2, 
-                                           const uint32_t n_ints)
+                                           const size_t n_ints)
 {
     return STORM_intersect_count_lookup_avx2_func((uint8_t*)b1, (uint8_t*)b2, n_ints*8);
 }
@@ -2172,7 +2156,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_union_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                        const uint64_t* STORM_RESTRICT b2, 
-                                       const uint32_t n_ints)
+                                       const size_t n_ints)
 {
     return STORM_union_count_lookup_avx2_func((uint8_t*)b1, (uint8_t*)b2, n_ints*8);
 }
@@ -2181,7 +2165,7 @@ STORM_TARGET("avx2")
 static 
 uint64_t STORM_diff_count_lookup_avx2(const uint64_t* STORM_RESTRICT b1, 
                                       const uint64_t* STORM_RESTRICT b2, 
-                                      const uint32_t n_ints)
+                                      const size_t n_ints)
 {
     return STORM_diff_count_lookup_avx2_func((uint8_t*)b1, (uint8_t*)b2, n_ints*8);
 }
@@ -2244,7 +2228,7 @@ void STORM_pospopcnt_csa_avx512(__m512i* STORM_RESTRICT h,
 
 STORM_TARGET("avx512bw")
 static 
-uint64_t STORM_popcnt_avx512(const __m512i* STORM_RESTRICT data, uint64_t size)
+uint64_t STORM_popcnt_avx512(const __m512i* STORM_RESTRICT data, size_t size)
 {
     __m512i cnt      = _mm512_setzero_si512();
     __m512i ones     = _mm512_setzero_si512();
@@ -2304,10 +2288,10 @@ uint64_t STORM_popcnt_avx512(const __m512i* STORM_RESTRICT data, uint64_t size)
 
 STORM_TARGET("avx512bw")
 static
-int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, size_t len, uint32_t* out) {
     for (uint32_t i = len - (len % (32 * 16)); i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -2364,7 +2348,7 @@ int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, uint32_t len
         for (size_t i = 0; i < 16; ++i) {
             _mm512_storeu_si512((__m512i*)buffer, counter[i]);
             for (size_t z = 0; z < 32; z++) {
-                flags[i] += 16 * (uint32_t)buffer[z];
+                out[i] += 16 * (uint32_t)buffer[z];
             }
         }
     }
@@ -2372,28 +2356,28 @@ int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, uint32_t len
     _mm512_storeu_si512((__m512i*)buffer, v1);
     for (size_t i = 0; i < 32; i++) {
         for (int j = 0; j < 16; j++) {
-            flags[j] += 1 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 1 * ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm512_storeu_si512((__m512i*)buffer, v2);
     for (size_t i = 0; i < 32; i++) {
         for (int j = 0; j < 16; j++) {
-            flags[j] += 2 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 2 * ((buffer[i] & (1 << j)) >> j);
         }
     }
     
     _mm512_storeu_si512((__m512i*)buffer, v4);
     for (size_t i = 0; i < 32; i++) {
         for (int j = 0; j < 16; j++) {
-            flags[j] += 4 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 4 * ((buffer[i] & (1 << j)) >> j);
         }
     }
 
     _mm512_storeu_si512((__m512i*)buffer, v8);
     for (size_t i = 0; i < 32; i++) {
         for (int j = 0; j < 16; j++) {
-            flags[j] += 8 * ((buffer[i] & (1 << j)) >> j);
+            out[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
 
@@ -2402,7 +2386,7 @@ int STORM_pospopcnt_u16_avx512bw_harvey_seal(const uint16_t* array, uint32_t len
 
 STORM_TARGET("avx512bw")
 static 
-int STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(const uint16_t* data, uint32_t len, uint32_t* flags) { 
+int STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(const uint16_t* data, size_t len, uint32_t* out) { 
 #define AND_OR 0xea // ternary function: (a & b) | c
     const __m512i* data_vectors = (const __m512i*)(data);
     const uint32_t n_cycles = len / 32;
@@ -2420,8 +2404,8 @@ int STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(const uint16_t* data, uint
         U(0,1) U( 2, 3) U( 4, 5) U( 6, 7)
         
         for (int i = 0; i < 8; ++i) {
-#define A0(p) flags[ 7 - i] += _mm_popcnt_u64(_mm512_movepi8_mask(input##p));
-#define A1(k) flags[15 - i] += _mm_popcnt_u64(_mm512_movepi8_mask(input##k));
+#define A0(p) out[ 7 - i] += _mm_popcnt_u64(_mm512_movepi8_mask(input##p));
+#define A1(k) out[15 - i] += _mm_popcnt_u64(_mm512_movepi8_mask(input##k));
 #define A(p, k) A0(p) A1(k)
             A(0,1) A(2, 3) A(4,5) A(6, 7)
 
@@ -2455,7 +2439,7 @@ int STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(const uint16_t* data, uint
     i *= 32;
     for (/**/; i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((data[i] & (1 << j)) >> j);
+            out[j] += ((data[i] & (1 << j)) >> j);
         }
     }
 
@@ -2475,7 +2459,7 @@ int STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(const uint16_t* data, uint
 
 STORM_TARGET("avx512bw")
 static
-int STORM_pospopcnt_u16_avx512bw_adder_forest(const uint16_t* array, uint32_t len, uint32_t* flags) {
+int STORM_pospopcnt_u16_avx512bw_adder_forest(const uint16_t* array, size_t len, uint32_t* out) {
     __m512i counters[16];
 
     for (size_t i = 0; i < 16; ++i) {
@@ -2544,7 +2528,7 @@ int STORM_pospopcnt_u16_avx512bw_adder_forest(const uint16_t* array, uint32_t le
         // Update.
         for (size_t i = 0; i < 16; ++i) {
             _mm512_storeu_si512((__m512i*)tmp, counters[i]);
-            for (int j = 0; j < 32; ++j) flags[i] += tmp[j];
+            for (int j = 0; j < 32; ++j) out[i] += tmp[j];
         }
         // Reset.
         for (size_t i = 0; i < 16; ++i) {
@@ -2577,7 +2561,7 @@ int STORM_pospopcnt_u16_avx512bw_adder_forest(const uint16_t* array, uint32_t le
     i *= 512;
     for (/**/; i < len; ++i) {
         for (int j = 0; j < 16; ++j) {
-            flags[j] += ((array[i] & (1 << j)) >> j);
+            out[j] += ((array[i] & (1 << j)) >> j);
         }
     }
 
@@ -2593,7 +2577,7 @@ int STORM_pospopcnt_u16_avx512bw_adder_forest(const uint16_t* array, uint32_t le
 
     for (size_t i = 0; i < 16; ++i) {
         _mm512_storeu_si512((__m512i*)tmp, counters[i]);
-        for (int j = 0; j < 32; ++j) flags[i] += tmp[j];
+        for (int j = 0; j < 32; ++j) out[i] += tmp[j];
     }
     return 0;
 }
@@ -2609,7 +2593,7 @@ STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_intersect_count_csa_avx512(const __m512i* STORM_RESTRICT data1, 
                                           const __m512i* STORM_RESTRICT data2, 
-                                          uint64_t size)
+                                          size_t size)
 {
     __m512i cnt      = _mm512_setzero_si512();
     __m512i ones     = _mm512_setzero_si512();
@@ -2671,7 +2655,7 @@ STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_union_count_csa_avx512(const __m512i* STORM_RESTRICT data1, 
                                       const __m512i* STORM_RESTRICT data2, 
-                                      uint64_t size)
+                                      size_t size)
 {
     __m512i cnt      = _mm512_setzero_si512();
     __m512i ones     = _mm512_setzero_si512();
@@ -2732,8 +2716,8 @@ uint64_t STORM_union_count_csa_avx512(const __m512i* STORM_RESTRICT data1,
 STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_diff_count_csa_avx512(const __m512i* STORM_RESTRICT data1, 
-                                  const __m512i* STORM_RESTRICT data2, 
-                                  uint64_t size)
+                                     const __m512i* STORM_RESTRICT data2, 
+                                     size_t size)
 {
     __m512i cnt      = _mm512_setzero_si512();
     __m512i ones     = _mm512_setzero_si512();
@@ -2797,7 +2781,7 @@ STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_intersect_count_avx512(const uint64_t* STORM_RESTRICT b1, 
                                       const uint64_t* STORM_RESTRICT b2, 
-                                      const uint32_t n_ints) 
+                                      const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m512i* r1 = (const __m512i*)(b1);
@@ -2817,7 +2801,7 @@ STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_union_count_avx512(const uint64_t* STORM_RESTRICT b1, 
                                   const uint64_t* STORM_RESTRICT b2, 
-                                  const uint32_t n_ints) 
+                                  const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m512i* r1 = (const __m512i*)(b1);
@@ -2837,7 +2821,7 @@ STORM_TARGET("avx512bw")
 static 
 uint64_t STORM_diff_count_avx512(const uint64_t* STORM_RESTRICT b1, 
                                  const uint64_t* STORM_RESTRICT b2, 
-                                 const uint32_t n_ints) 
+                                 const size_t n_ints) 
 {
     uint64_t count = 0;
     const __m512i* r1 = (const __m512i*)(b1);
@@ -2859,7 +2843,7 @@ uint64_t STORM_diff_count_avx512(const uint64_t* STORM_RESTRICT b1,
 ****************************/
 
 STORM_FORCE_INLINE
-uint64_t STORM_popcount64_unrolled(const uint64_t* data, uint64_t size) {
+uint64_t STORM_popcount64_unrolled(const uint64_t* data, size_t size) {
     uint64_t i = 0;
     uint64_t limit = size - size % 4;
     uint64_t cnt = 0;
@@ -2884,7 +2868,7 @@ uint64_t STORM_popcount64_unrolled(const uint64_t* data, uint64_t size) {
 STORM_FORCE_INLINE 
 uint64_t STORM_intersect_count_scalar(const uint64_t* STORM_RESTRICT b1, 
                                       const uint64_t* STORM_RESTRICT b2, 
-                                      const uint32_t n_ints)
+                                      const size_t n_ints)
 {
     return STORM_intersect_count_unrolled(b1, b2, n_ints);
 }
@@ -2892,7 +2876,7 @@ uint64_t STORM_intersect_count_scalar(const uint64_t* STORM_RESTRICT b1,
 STORM_FORCE_INLINE 
 uint64_t STORM_union_count_scalar(const uint64_t* STORM_RESTRICT b1, 
                                   const uint64_t* STORM_RESTRICT b2, 
-                                  const uint32_t n_ints)
+                                  const size_t n_ints)
 {
     return STORM_union_count_unrolled(b1, b2, n_ints);
 }
@@ -2900,7 +2884,7 @@ uint64_t STORM_union_count_scalar(const uint64_t* STORM_RESTRICT b1,
 STORM_FORCE_INLINE 
 uint64_t STORM_diff_count_scalar(const uint64_t* STORM_RESTRICT b1, 
                                  const uint64_t* STORM_RESTRICT b2, 
-                                 const uint32_t n_ints)
+                                 const size_t n_ints)
 {
     return STORM_diff_count_unrolled(b1, b2, n_ints);
 }
@@ -2910,21 +2894,19 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
                                            const uint64_t* STORM_RESTRICT b2, 
                                            const uint32_t* STORM_RESTRICT l1, 
                                            const uint32_t* STORM_RESTRICT l2,
-                                           const uint32_t n1, 
-                                           const uint32_t n2) 
+                                           const size_t n1, 
+                                           const size_t n2) 
 {
     uint64_t count = 0;
 
 #define MOD(x) (( (x) * 64 ) >> 6)
     if(n1 < n2) {
         for (int i = 0; i < n1; ++i) {
-            count += ((b2[l1[i] >> 6] & (1L << MOD(l1[i]))) != 0); 
-            // __builtin_prefetch(&b2[l1[i] >> 6], 0, _MM_HINT_T0);
+            count += ((b2[l1[i] >> 6] & (1L << MOD(l1[i]))) != 0);
         }
     } else {
         for (int i = 0; i < n2; ++i) {
             count += ((b1[l2[i] >> 6] & (1L << MOD(l2[i]))) != 0);
-            // __builtin_prefetch(&b1[l2[i] >> 6], 0, _MM_HINT_T0);
         }
     }
 #undef MOD
@@ -2935,11 +2917,9 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
 /* *************************************
 *  Function pointer definitions.
 ***************************************/
-typedef uint64_t (*STORM_compute_func)(const uint64_t*, const uint64_t*, const uint32_t);
-typedef uint64_t (*STORM_compute_lfunc)(const uint64_t*, const uint64_t*, 
-    const uint32_t*, const uint32_t*, const uint32_t, const uint32_t);
-typedef int (STORM_pposcnt_func)(const uint16_t*, uint32_t, uint32_t*);
-typedef uint64_t (STORM_popcnt_func)(const uint8_t*, uint32_t);
+typedef uint64_t (*STORM_compute_func)(const uint64_t*, const uint64_t*, const size_t);
+typedef int (STORM_pposcnt_func)(const uint16_t*, size_t, uint32_t*);
+typedef uint64_t (STORM_popcnt_func)(const uint8_t*, size_t);
 
 /* *************************************
 *  Alignment 
@@ -2997,7 +2977,7 @@ uint32_t STORM_get_alignment() {
 // Return the optimal intersection function given the range [0, n_bitmaps_vector)
 // and the available instruction set at run-time.
 static
-STORM_compute_func STORM_get_intersect_count_func(const uint32_t n_bitmaps_vector) {
+STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector) {
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3045,7 +3025,7 @@ STORM_compute_func STORM_get_intersect_count_func(const uint32_t n_bitmaps_vecto
 }
 
 static
-STORM_compute_func STORM_get_union_count_func(const uint32_t n_bitmaps_vector) {
+STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3093,7 +3073,7 @@ STORM_compute_func STORM_get_union_count_func(const uint32_t n_bitmaps_vector) {
 }
 
 static
-STORM_compute_func STORM_get_diff_count_func(const uint32_t n_bitmaps_vector) {
+STORM_compute_func STORM_get_diff_count_func(const size_t n_bitmaps_vector) {
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3144,7 +3124,10 @@ STORM_compute_func STORM_get_diff_count_func(const uint32_t n_bitmaps_vector) {
 // Return the optimal intersection function given the range [0, n_bitmaps_vector)
 // and the available instruction set at run-time.
 static
-uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1, 
+                               const uint64_t* STORM_RESTRICT data2, 
+                               const size_t n_len)
+{
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3192,7 +3175,10 @@ uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1, const uint6
 }
 
 static
-uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1, 
+                           const uint64_t* STORM_RESTRICT data2, 
+                           const size_t n_len)
+{
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3240,7 +3226,10 @@ uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1, const uint64_t*
 }
 
 static
-uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* STORM_RESTRICT data2, const uint32_t n_len) {
+uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1, 
+                          const uint64_t* STORM_RESTRICT data2, 
+                          const size_t n_len)
+{
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3291,7 +3280,7 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1, const uint64_t* 
 *  POPCNT and POSPOPCNT functions.
 ***************************************/
 static
-uint64_t STORM_popcnt(const uint8_t* data, uint32_t size) {
+uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
     uint64_t cnt = 0;
     uint64_t i;
 
@@ -3369,8 +3358,8 @@ uint64_t STORM_popcnt(const uint8_t* data, uint32_t size) {
 }
 
 static
-int STORM_pospopcnt_u16(const uint16_t* data, uint32_t len, uint32_t* flags) {
-    memset(flags, 0, sizeof(uint32_t)*16);
+int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
+    memset(out, 0, sizeof(uint32_t)*16);
 
 #if defined(HAVE_CPUID)
     #if defined(__cplusplus)
@@ -3394,34 +3383,34 @@ int STORM_pospopcnt_u16(const uint16_t* data, uint32_t len, uint32_t* flags) {
 #if defined(HAVE_AVX512)
     if ((cpuid & STORM_bit_AVX512BW))
     {
-        if (len < 32) return(STORM_pospopcnt_u16_sse_sad(data, len, flags)); // small
-        else if (len < 256)  return(STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(data, len, flags)); // small
-        else if (len < 512)  return(STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(data, len, flags)); // medium
-        else if (len < 4096) return(STORM_pospopcnt_u16_avx512bw_adder_forest(data, len, flags)); // medium3
-        else return(STORM_pospopcnt_u16_avx512bw_harvey_seal(data, len, flags)); // fix
+        if (len < 32) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small
+        else if (len < 256)  return(STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(data, len, out)); // small
+        else if (len < 512)  return(STORM_pospopcnt_u16_avx512bw_blend_popcnt_unroll8(data, len, out)); // medium
+        else if (len < 4096) return(STORM_pospopcnt_u16_avx512bw_adder_forest(data, len, out)); // medium3
+        else return(STORM_pospopcnt_u16_avx512bw_harvey_seal(data, len, out)); // fix
     }
 #endif
 
 #if defined(HAVE_AVX2)
     if ((cpuid & STORM_bit_AVX2))
     {
-        if (len < 128) return(STORM_pospopcnt_u16_sse_sad(data, len, flags)); // small
-        else if (len < 1024) return(STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(data, len, flags)); // medium
-        else return(STORM_pospopcnt_u16_avx2_harvey_seal(data, len, flags)); // large
+        if (len < 128) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small
+        else if (len < 1024) return(STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(data, len, out)); // medium
+        else return(STORM_pospopcnt_u16_avx2_harvey_seal(data, len, out)); // large
     }
 #endif
 
 #if defined(HAVE_SSE4)
     if ((cpuid & STORM_bit_SSE42))
     {
-         return(STORM_pospopcnt_u16_sse_harvey_seal(data, len, flags));
+         return(STORM_pospopcnt_u16_sse_harvey_seal(data, len, out));
     }
 #endif
 
 #ifndef _MSC_VER
-    return(STORM_pospopcnt_u16_scalar_umul128_unroll2(data, len, flags)); // fallback scalar
+    return(STORM_pospopcnt_u16_scalar_umul128_unroll2(data, len, out)); // fallback scalar
 #else
-    return(STORM_pospopcnt_u16_scalar_naive(data, len, flags));
+    return(STORM_pospopcnt_u16_scalar_naive(data, len, out));
 #endif
 }
 
