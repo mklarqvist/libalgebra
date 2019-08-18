@@ -2951,6 +2951,8 @@ uint64_t STORM_popcnt_avx512(const uint64_t* data,
     for (int i = (8*n_cycles + 4*n_cycles + 2*n_cycles_sse); i < n_64b; ++i) {
         count += STORM_POPCOUNT(data[i]);
     }
+
+    return count;
 }
 #endif
 
