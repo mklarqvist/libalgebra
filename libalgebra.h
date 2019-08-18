@@ -65,8 +65,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef LIBALGEBRA_H_9827563662203
-#define LIBALGEBRA_H_9827563662203
+#ifndef LIBALGEBRA_H_8723467365934
+#define LIBALGEBRA_H_8723467365934
 
 /* *************************************
 *  Includes
@@ -77,30 +77,16 @@
 #include <string.h>
 #include <math.h>
 
-// Safety
+/* *************************************
+*  Safety
+***************************************/
+
 #if !(defined(__APPLE__)) && !(defined(__FreeBSD__))
 #include <malloc.h>  // this should never be needed but there are some reports that it is needed.
 #endif
 
-/* *************************************
- *  Support.
- * 
- *  These subroutines and definitions are taken from the CRoaring repo
- *  by Daniel Lemire et al. available under the Apache 2.0 License
- *  (same as libintersect.h):
- *  https://github.com/RoaringBitmap/CRoaring/ 
- ***************************************/
 #if defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ != 8
 #error This code assumes 64-bit long longs (by use of the GCC intrinsics). Your system is not currently supported.
-#endif
-
-/* ===   Compiler specifics   === */
-
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* >= C99 */
-#  define STORM_RESTRICT   restrict
-#else
-/* note : it might be useful to define __restrict or STORM_RESTRICT for some C++ compilers */
-#  define STORM_RESTRICT   /* disable */
 #endif
 
 /****************************
@@ -110,6 +96,11 @@
 *  STORM_aligned_malloc and STORM_aligned_free to prevent clashing with the
 *  same subroutines in Roaring. These subroutines are included here
 *  since there is no hard dependency on using Roaring bitmaps.
+*
+*  These subroutines and definitions are taken from the CRoaring repo
+*  by Daniel Lemire et al. available under the Apache 2.0 License
+*  (same as libalgebra.h):
+*  https://github.com/RoaringBitmap/CRoaring/ 
 ****************************/
 // portable version of  posix_memalign
 #ifndef _MSC_VER
@@ -150,15 +141,18 @@ void STORM_aligned_free(void* memblock) {
 // portable alignment
 #if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)   /* C11+ */
 #  include <stdalign.h>
-#  define STORM_ALIGN(n)      alignas(n)
+#  define STORM_ALIGN(n)  alignas(n)
 #elif defined(__GNUC__)
-#  define STORM_ALIGN(n)      __attribute__ ((aligned(n)))
+#  define STORM_ALIGN(n)  __attribute__ ((aligned(n)))
 #elif defined(_MSC_VER)
-#  define STORM_ALIGN(n)      __declspec(align(n))
+#  define STORM_ALIGN(n)  __declspec(align(n))
 #else
-#  define STORM_ALIGN(n)   /* disabled */
+#  define STORM_ALIGN(n)  /* disabled */
 #endif
 
+/* *************************************
+*  Compiler Specific Options
+***************************************/
 // Taken from XXHASH
 #ifdef _MSC_VER    /* Visual Studio */
 #  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
@@ -179,19 +173,6 @@ void STORM_aligned_free(void* memblock) {
 #  endif /* __STDC_VERSION__ */
 #endif
 
-// disable noise
-#ifdef __GNUC__
-#define STORM_WARN_UNUSED __attribute__((warn_unused_result))
-#else
-#define STORM_WARN_UNUSED
-#endif
-
-/*------ SIMD definitions --------*/
-
-#define STORM_SSE_ALIGNMENT    16
-#define STORM_AVX2_ALIGNMENT   32
-#define STORM_AVX512_ALIGNMENT 64
-
 /****************************
 *  General checks
 ****************************/
@@ -206,6 +187,20 @@ void STORM_aligned_free(void* memblock) {
   #define STORM_HAS_ATTRIBUTE(x) 0
 #else
   #define STORM_HAS_ATTRIBUTE(x) __has_attribute(x)
+#endif
+
+// disable noise
+#ifdef __GNUC__
+#define STORM_WARN_UNUSED __attribute__((warn_unused_result))
+#else
+#define STORM_WARN_UNUSED
+#endif
+
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* >= C99 */
+#  define STORM_RESTRICT   restrict
+#else
+/* note : it might be useful to define __restrict or STORM_RESTRICT for some C++ compilers */
+#  define STORM_RESTRICT   /* disable */
 #endif
 
 #ifdef __GNUC__
@@ -294,13 +289,19 @@ void STORM_aligned_free(void* memblock) {
   #define STORM_TARGET(x) 0
 #endif
 
+
+/****************************
+*  CPUID and SIMD
+****************************/
+
+#define STORM_SSE_ALIGNMENT    16
+#define STORM_AVX2_ALIGNMENT   32
+#define STORM_AVX512_ALIGNMENT 64
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/****************************
-*  CPUID
-****************************/
 #if defined(HAVE_CPUID)
 
 #if defined(_MSC_VER)
@@ -310,13 +311,13 @@ extern "C" {
 
 // CPUID flags. See https://en.wikipedia.org/wiki/CPUID for more info.
 /* %ecx bit flags */
-#define STORM_bit_POPCNT   (1 << 23) // POPCNT instruction 
-#define STORM_bit_SSE41    (1 << 19) // CPUID.01H:ECX.SSE41[Bit 19]
-#define STORM_bit_SSE42    (1 << 20) // CPUID.01H:ECX.SSE41[Bit 20]
+#define STORM_CPUID_runtime_bit_POPCNT   (1 << 23) // POPCNT instruction 
+#define STORM_CPUID_runtime_bit_SSE41    (1 << 19) // CPUID.01H:ECX.SSE41[Bit 19]
+#define STORM_CPUID_runtime_bit_SSE42    (1 << 20) // CPUID.01H:ECX.SSE41[Bit 20]
 
 /* %ebx bit flags */
-#define STORM_bit_AVX2     (1 << 5)  // CPUID.(EAX=07H, ECX=0H):EBX.AVX2[bit 5]
-#define STORM_bit_AVX512BW (1 << 30) // AVX-512 Byte and Word Instructions
+#define STORM_CPUID_runtime_bit_AVX2     (1 << 5)  // CPUID.(EAX=07H, ECX=0H):EBX.AVX2[bit 5]
+#define STORM_CPUID_runtime_bit_AVX512BW (1 << 30) // AVX-512 Byte and Word Instructions
 
 /* xgetbv bit flags */
 #define STORM_XSTATE_SSE (1 << 1)
@@ -382,16 +383,16 @@ int STORM_get_cpuid() {
     STORM_run_cpuid(1, 0, abcd);
 
     // Check for POPCNT instruction
-    if ((abcd[2] & STORM_bit_POPCNT) == STORM_bit_POPCNT)
-        flags |= STORM_bit_POPCNT;
+    if ((abcd[2] & STORM_CPUID_runtime_bit_POPCNT) == STORM_CPUID_runtime_bit_POPCNT)
+        flags |= STORM_CPUID_runtime_bit_POPCNT;
 
     // Check for SSE4.1 instruction set
-    if ((abcd[2] & STORM_bit_SSE41) == STORM_bit_SSE41)
-        flags |= STORM_bit_SSE41;
+    if ((abcd[2] & STORM_CPUID_runtime_bit_SSE41) == STORM_CPUID_runtime_bit_SSE41)
+        flags |= STORM_CPUID_runtime_bit_SSE41;
 
     // Check for SSE4.2 instruction set
-    if ((abcd[2] & STORM_bit_SSE42) == STORM_bit_SSE42)
-        flags |= STORM_bit_SSE42;
+    if ((abcd[2] & STORM_CPUID_runtime_bit_SSE42) == STORM_CPUID_runtime_bit_SSE42)
+        flags |= STORM_CPUID_runtime_bit_SSE42;
 
 #if defined(HAVE_AVX2) || \
     defined(HAVE_AVX512)
@@ -410,12 +411,12 @@ int STORM_get_cpuid() {
     if ((xcr0 & ymm_mask) == ymm_mask) {
         STORM_run_cpuid(7, 0, abcd);
 
-        if ((abcd[1] & STORM_bit_AVX2) == STORM_bit_AVX2)
-            flags |= STORM_bit_AVX2;
+        if ((abcd[1] & STORM_CPUID_runtime_bit_AVX2) == STORM_CPUID_runtime_bit_AVX2)
+            flags |= STORM_CPUID_runtime_bit_AVX2;
 
         if ((xcr0 & zmm_mask) == zmm_mask) {
-            if ((abcd[1] & STORM_bit_AVX512BW) == STORM_bit_AVX512BW)
-            flags |= STORM_bit_AVX512BW;
+            if ((abcd[1] & STORM_CPUID_runtime_bit_AVX512BW) == STORM_CPUID_runtime_bit_AVX512BW)
+                flags |= STORM_CPUID_runtime_bit_AVX512BW;
         }
     }
 
@@ -2900,14 +2901,12 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
     uint64_t count = 0;
 
 #define MOD(x) (( (x) * 64 ) >> 6)
-    if(n1 < n2) {
-        for (int i = 0; i < n1; ++i) {
+    if (n1 < n2) {
+        for (int i = 0; i < n1; ++i)
             count += ((b2[l1[i] >> 6] & (1L << MOD(l1[i]))) != 0);
-        }
     } else {
-        for (int i = 0; i < n2; ++i) {
+        for (int i = 0; i < n2; ++i)
             count += ((b1[l2[i] >> 6] & (1L << MOD(l2[i]))) != 0);
-        }
     }
 #undef MOD
     return(count);
@@ -2950,19 +2949,19 @@ uint32_t STORM_get_alignment() {
 
     uint32_t alignment = 0;
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW)) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW)) { // 16*512
         alignment = STORM_AVX512_ALIGNMENT;
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && alignment == 0) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && alignment == 0) { // 16*256
         alignment = STORM_AVX2_ALIGNMENT;
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && alignment == 0) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && alignment == 0) { // 16*128
         alignment = STORM_SSE_ALIGNMENT;
     }
 #endif
@@ -3000,23 +2999,23 @@ STORM_compute_func STORM_get_intersect_count_func(const size_t n_bitmaps_vector)
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_intersect_count_avx512;
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_intersect_count_avx2;
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 4) {
         return &STORM_intersect_count_lookup_avx2;
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_intersect_count_sse4;
     }
 #endif
@@ -3048,23 +3047,23 @@ STORM_compute_func STORM_get_union_count_func(const size_t n_bitmaps_vector) {
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_union_count_avx512;
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_union_count_avx2;
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 4) {
         return &STORM_union_count_lookup_avx2;
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_union_count_sse4;
     }
 #endif
@@ -3096,23 +3095,23 @@ STORM_compute_func STORM_get_diff_count_func(const size_t n_bitmaps_vector) {
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_bitmaps_vector >= 128) { // 16*512
         return &STORM_diff_count_avx512;
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 64) { // 16*256
         return &STORM_diff_count_avx2;
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_bitmaps_vector >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_bitmaps_vector >= 4) {
         return &STORM_diff_count_lookup_avx2;
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_bitmaps_vector >= 32) { // 16*128
         return &STORM_diff_count_sse4;
     }
 #endif
@@ -3150,23 +3149,23 @@ uint64_t STORM_intersect_count(const uint64_t* STORM_RESTRICT data1,
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_intersect_count_avx512(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_intersect_count_avx2(data1, data2, n_len);
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 4) {
         return STORM_intersect_count_lookup_avx2(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_intersect_count_sse4(data1, data2, n_len);
     }
 #endif
@@ -3201,23 +3200,23 @@ uint64_t STORM_union_count(const uint64_t* STORM_RESTRICT data1,
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_union_count_avx512(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_union_count_avx2(data1, data2, n_len);
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 4) {
         return STORM_union_count_lookup_avx2(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_union_count_sse4(data1, data2, n_len);
     }
 #endif
@@ -3252,23 +3251,23 @@ uint64_t STORM_diff_count(const uint64_t* STORM_RESTRICT data1,
 
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW) && n_len >= 128) { // 16*512
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) && n_len >= 128) { // 16*512
         return STORM_diff_count_avx512(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 64) { // 16*256
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 64) { // 16*256
         return STORM_diff_count_avx2(data1, data2, n_len);
     }
     
-    if ((cpuid & STORM_bit_AVX2) && n_len >= 4) {
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) && n_len >= 4) {
         return STORM_diff_count_lookup_avx2(data1, data2, n_len);
     }
 #endif
 
 #if defined(HAVE_SSE42)
-    if ((cpuid & STORM_bit_SSE41) && n_len >= 32) { // 16*128
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE41) && n_len >= 32) { // 16*128
         return STORM_diff_count_sse4(data1, data2, n_len);
     }
 #endif
@@ -3306,7 +3305,7 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
 #if defined(HAVE_AVX512)
 
     /* AVX512 requires arrays >= 1024 bytes */
-    if ((cpuid & STORM_bit_AVX512BW) &&
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW) &&
         size >= 1024)
     {
         cnt += STORM_popcnt_avx512((const __m512i*)data, size / 64);
@@ -3319,7 +3318,7 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
 #if defined(HAVE_AVX2)
 
     /* AVX2 requires arrays >= 512 bytes */
-    if ((cpuid & STORM_bit_AVX2) &&
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2) &&
         size >= 512)
     {
         cnt += STORM_popcnt_avx2((const __m256i*)data, size / 32);
@@ -3331,7 +3330,7 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
 
 #if defined(HAVE_POPCNT)
 
-    if (cpuid & STORM_bit_POPCNT) {
+    if (cpuid & STORM_CPUID_runtime_bit_POPCNT) {
         cnt += STORM_popcount64_unrolled((const uint64_t*)data, size / 8);
         data += size - size % 8;
         size = size % 8;
@@ -3381,7 +3380,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
 #endif
 
 #if defined(HAVE_AVX512)
-    if ((cpuid & STORM_bit_AVX512BW))
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX512BW))
     {
         if (len < 32) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small
         else if (len < 256)  return(STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(data, len, out)); // small
@@ -3392,7 +3391,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
 #endif
 
 #if defined(HAVE_AVX2)
-    if ((cpuid & STORM_bit_AVX2))
+    if ((cpuid & STORM_CPUID_runtime_bit_AVX2))
     {
         if (len < 128) return(STORM_pospopcnt_u16_sse_sad(data, len, out)); // small
         else if (len < 1024) return(STORM_pospopcnt_u16_avx2_blend_popcnt_unroll8(data, len, out)); // medium
@@ -3401,7 +3400,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
 #endif
 
 #if defined(HAVE_SSE4)
-    if ((cpuid & STORM_bit_SSE42))
+    if ((cpuid & STORM_CPUID_runtime_bit_SSE42))
     {
          return(STORM_pospopcnt_u16_sse_harvey_seal(data, len, out));
     }
@@ -3418,4 +3417,4 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
 } /* extern "C" */
 #endif
 
-#endif /* LIBALGEBRA_H_9827563662203 */
+#endif /* LIBALGEBRA_H_8723467365934 */
