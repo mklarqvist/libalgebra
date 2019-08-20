@@ -3450,13 +3450,13 @@ uint64_t STORM_popcnt(const uint8_t* data, size_t size) {
 
 #endif
 
-#if defined(HAVE_SSE4)
+#if defined(STORM_HAVE_SSE42)
 
     /* AVX2 requires arrays >= 512 bytes */
     if ((cpuid & STORM_CPUID_runtime_bit_SSE42) &&
         size >= 256)
     {
-        cnt += STORM_popcnt_sse4((uint64_t*)data, size/8));
+        cnt += STORM_popcnt_sse4((uint64_t*)data, size/8);
         data += size - size % 8;
         size = size % 8;
         // data += size - size % 32;
@@ -3536,7 +3536,7 @@ int STORM_pospopcnt_u16(const uint16_t* data, size_t len, uint32_t* out) {
     }
 #endif
 
-#if defined(HAVE_SSE4)
+#if defined(STORM_HAVE_SSE42)
     if ((cpuid & STORM_CPUID_runtime_bit_SSE42))
     {
          return(STORM_pospopcnt_u16_sse_harvey_seal(data, len, out));
