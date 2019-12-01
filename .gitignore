@@ -54,6 +54,7 @@ dkms.conf
 # Executable
 benchmark
 validate_pospopcnt_u16
+benchmark_pospopcnt_u16
 # VSCode
 settings.json
 # CMake
