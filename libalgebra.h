@@ -3033,8 +3033,8 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
 *  Function pointer definitions.
 ***************************************/
 typedef uint64_t (*STORM_compute_func)(const uint64_t*, const uint64_t*, const size_t);
-typedef int (STORM_pposcnt_func)(const uint16_t*, size_t, uint32_t*);
 typedef uint64_t (STORM_popcnt_func)(const uint8_t*, size_t);
+typedef int (STORM_pospopcnt_u16_func)(const uint16_t*, size_t, uint32_t*);
 
 /* *************************************
 *  Alignment 
