@@ -9,5 +9,6 @@ add_executable(benchmark benchmark.cpp)
 add_executable(validate_pospopcnt_u16 validate_pospopcnt_u16.cpp)
 add_executable(benchmark_pospopcnt_u16 benchmark_pospopcnt_u16.cpp)
 add_executable(validate_pospopcnt_u8 validate_pospopcnt_u8.cpp)
+add_executable(benchmark_pospopcnt_u8 benchmark_pospopcnt_u8.cpp)
 
 install(FILES libalgebra.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
