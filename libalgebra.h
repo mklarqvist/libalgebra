@@ -573,6 +573,25 @@ int STORM_pospopcnt_u16_scalar_naive(const uint16_t* data, size_t len, uint32_t*
     return 0;
 }
 
+static
+int STORM_pospopcnt_u8_scalar_naive(const uint8_t* data, size_t len, uint32_t* out) {
+    for (int i = 0; i < len; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            out[j] += ((data[i] & (1 << j)) >> j);
+        }
+    }
+
+    return 0;
+}
+
+static
+int STORM_pospopcnt_u8_scalar_naive_single(uint8_t data, uint32_t* out) {
+    for (int i = 0; i < 8; ++i)
+        out[i] += ((data & (1 << i)) >> i);
+
+    return 0;
+}
+
 #ifndef _MSC_VER
 
 STORM_FORCE_INLINE
@@ -680,6 +699,23 @@ int STORM_pospopcnt_u16_scalar_umul128_unroll2(const uint16_t* in, size_t n, uin
         out[7]  += (tail_counter_b >> 48) & 0xFF;
         out[15] += (tail_counter_b >> 56) & 0xFF;
     }
+
+    return 0;
+}
+
+STORM_TARGET("sse4.2")
+static
+int STORM_pospopcnt_u8_scalar_umul128_unroll2(const uint8_t* data, size_t len, uint32_t* flag_counts) {
+    uint32_t pospopcnt16[32];
+    for (int i=0; i < 32; i++)
+        pospopcnt16[i] = 0;
+
+    STORM_pospopcnt_u16_scalar_umul128_unroll2((uint16_t*)data, len/2, pospopcnt16);
+    for (int i=0; i < 8; i++)
+        flag_counts[i] = pospopcnt16[i + 0] + pospopcnt16[i + 8];
+
+    if (len % 2 == 1)
+        STORM_pospopcnt_u8_scalar_naive_single(data[len - 1], flag_counts);
 
     return 0;
 }
@@ -1030,6 +1066,23 @@ int STORM_pospopcnt_u16_sse_sad(const uint16_t* data, size_t len, uint32_t* flag
 
 STORM_TARGET("sse4.2")
 static
+int STORM_pospopcnt_u8_sse_sad(const uint8_t* data, size_t len, uint32_t* flag_counts) {
+    uint32_t pospopcnt16[16];
+    for (int i=0; i < 16; i++)
+        pospopcnt16[i] = 0;
+
+    STORM_pospopcnt_u16_sse_sad((uint16_t*)data, len/2, pospopcnt16);
+    for (int i=0; i < 8; i++)
+        flag_counts[i] = pospopcnt16[i + 0] + pospopcnt16[i + 8];
+
+    if (len % 2 == 1)
+        STORM_pospopcnt_u8_scalar_naive_single(data[len - 1], flag_counts);
+
+    return 0;
+}
+
+STORM_TARGET("sse4.2")
+static
 int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, size_t len, uint32_t* out) {
     const __m128i* data_vectors = (const __m128i*)(array);
     const uint32_t n_cycles = len / 8;
@@ -1095,6 +1148,23 @@ int STORM_pospopcnt_u16_sse_blend_popcnt_unroll8(const uint16_t* array, size_t l
 #undef A
 #undef P0
 #undef P
+    return 0;
+}
+
+STORM_TARGET("sse4.2")
+static
+int STORM_pospopcnt_u8_sse_blend_popcnt_unroll8(const uint8_t* data, size_t len, uint32_t* flag_counts) {
+    uint32_t pospopcnt16[32];
+    for (int i=0; i < 32; i++)
+        pospopcnt16[i] = 0;
+
+    STORM_pospopcnt_u16_sse_blend_popcnt_unroll8((uint16_t*)data, len/2, pospopcnt16);
+    for (int i=0; i < 8; i++)
+        flag_counts[i] = pospopcnt16[i + 0] + pospopcnt16[i + 8];
+
+    if (len % 2 == 1)
+        STORM_pospopcnt_u8_scalar_naive_single(data[len - 1], flag_counts);
+
     return 0;
 }
 
@@ -1193,6 +1263,23 @@ int STORM_pospopcnt_u16_sse_harvey_seal(const uint16_t* array, size_t len, uint3
             out[j] += 8 * ((buffer[i] & (1 << j)) >> j);
         }
     }
+    return 0;
+}
+
+STORM_TARGET("sse4.2")
+static
+int STORM_pospopcnt_u8_sse_harley_seal(const uint8_t* data, size_t len, uint32_t* flag_counts) {
+    uint32_t pospopcnt16[32];
+    for (int i=0; i < 32; i++)
+        pospopcnt16[i] = 0;
+
+    STORM_pospopcnt_u16_sse_harvey_seal((uint16_t*)data, len/2, pospopcnt16);
+    for (int i=0; i < 8; i++)
+        flag_counts[i] = pospopcnt16[i + 0] + pospopcnt16[i + 8];
+
+    if (len % 2 == 1)
+        STORM_pospopcnt_u8_scalar_naive_single(data[len - 1], flag_counts);
+
     return 0;
 }
 
@@ -3035,6 +3122,7 @@ uint64_t STORM_intersect_count_scalar_list(const uint64_t* STORM_RESTRICT b1,
 typedef uint64_t (*STORM_compute_func)(const uint64_t*, const uint64_t*, const size_t);
 typedef uint64_t (STORM_popcnt_func)(const uint8_t*, size_t);
 typedef int (STORM_pospopcnt_u16_func)(const uint16_t*, size_t, uint32_t*);
+typedef int (STORM_pospopcnt_u8_func)(const uint8_t*, size_t, uint32_t*);
 
 /* *************************************
 *  Alignment 
