@@ -26,6 +26,7 @@ public:
         ok &= validate("SSE SAD",              &STORM_pospopcnt_u8_sse_sad);
         ok &= validate("SSE blend unroll8",    &STORM_pospopcnt_u8_sse_blend_popcnt_unroll8);
         ok &= validate("SSE Harley-Seal",      &STORM_pospopcnt_u8_sse_harley_seal);
+        ok &= validate("SSE variant 1",        &STORM_pospopcnt_u8_sse_variant1);
     
         return ok;
     }
@@ -37,7 +38,7 @@ private:
         std::mt19937 eng(rd()); // seed the generator
         eng.seed(42);
 
-        input.resize(1024);
+        input.resize(1024*10);
         for (auto& word: input)
             word = distr(eng);
     }

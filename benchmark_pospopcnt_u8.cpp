@@ -325,6 +325,7 @@ int benchmark(int n_repetitions, bool use_perf = false) {
         pospopcount_u8_wrapper("SSE SAD",              &STORM_pospopcnt_u8_sse_sad, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
         pospopcount_u8_wrapper("SSE blend unroll8",    &STORM_pospopcnt_u8_sse_blend_popcnt_unroll8, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
         pospopcount_u8_wrapper("SSE Harley-Seal",      &STORM_pospopcnt_u8_sse_harley_seal, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
+        pospopcount_u8_wrapper("SSE variant 1",        &STORM_pospopcnt_u8_sse_variant1, reps[i], ranges[i], ranges[i], ranges[i], unit_intsec);
     }
 
     // Clean up.
