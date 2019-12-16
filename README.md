@@ -22,8 +22,7 @@ The core algorithms are described in the papers:
 
 * [Faster Population Counts using AVX2 Instructions](https://arxiv.org/abs/1611.07612) by Daniel Lemire, Nathan Kurz
   and Wojciech Muła (23 Nov 2016).
-* Efficient Computation of Positional Population Counts Using SIMD Instructions,
-  by Marcus D. R. Klarqvist, Wojciech Muła, and Daniel Lemire (upcoming)
+* [Efficient Computation of Positional Population Counts Using SIMD Instructions](https://arxiv.org/abs/1911.02696) by Marcus D. R. Klarqvist and Wojciech Muła and Daniel Lemire
 * [Consistently faster and smaller compressed bitmaps with Roaring](https://arxiv.org/abs/1603.06549) by D. Lemire, G. Ssi-Yan-Kai,
   and O. Kaser (21 Mar 2016).
 
